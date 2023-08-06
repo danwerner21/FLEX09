@@ -1,0 +1,444 @@
+0001                           NAM      INIT.TXT
+0002                           OPT      pag
+0003                 *       LEN     96
+0004                           PAG
+0005                 *************************************************
+0006                 *                                               *
+0007                 *       Flex 2.9:1 initialization code          *
+0008                 *                                               *
+0009                 *************************************************
+0010                 
+0011 C080            LNBUFF    EQU      $C080
+0012 C100            STARTR    EQU      $C100
+0013 C840            SYSFCB    EQU      $C840
+0014                 
+0015 CC0E            SMONTH    EQU      $CC0E
+0016 CC14            LNBUFP    EQU      $CC14
+0017 CC16            ESCRTN    EQU      $CC16
+0018 CC2B            MEMEND    EQU      $CC2B
+0019 CC33            CPUTYP    EQU      $CC33
+0020 CC4E            PROMPT    EQU      $CC4E
+0021                 
+0022 CD00            COLDST    EQU      $CD00
+0023 CD03            WARMST    EQU      $CD03
+0024 CD06            RENTER    EQU      $CD06
+0025 CD09            INCH      EQU      $CD09
+0026 CD0C            INCH2     EQU      $CD0C
+0027 CD0F            OUTCH     EQU      $CD0F
+0028 CD12            OUTCH2    EQU      $CD12
+0029 CD1B            INBUFF    EQU      $CD1B
+0030 CD1E            PSTRNG    EQU      $CD1E
+0031 CD24            PRCRLF    EQU      $CD24
+0032 CD48            INDECM    EQU      $CD48
+0033 CD4E            STAT      EQU      $CD4E
+0034                 
+0035 D0F0            ZD0F0     EQU      $D0F0
+0036 D0F1            ZD0F1     EQU      $D0F1
+0037                 
+0038 D370            STIME     EQU      $D370
+0039                 
+0040 D3E7            IHNDLR    EQU      $D3E7
+0041 D3ED            TIMOFF    EQU      $D3ED
+0042 D3EF            TIMON     EQU      $D3EF
+0043 D3F1            TMINIT    EQU      $D3F1
+0044 D3F5            TRMINT    EQU      $D3F5
+0045 D3F7            TRMCHK    EQU      $D3F7
+0046 D3F9            TIMOUT    EQU      $D3F9
+0047 D3FB            TIMINE    EQU      $D3FB
+0048 D3FD            ZD3FD     EQU      $D3FD
+0049                 
+0050 D406            FMSCAL    EQU      $D406
+0051                 
+0052 DE0F            DCHECK    EQU      $DE0F
+0053 DE18            DWARM     EQU      $DE18
+0054                 
+0055 DFD0            ZDFD0     EQU      $DFD0
+0056 DFDC            ZDFDC     EQU      $DFDC
+0057 DFDD            ZDFDD     EQU      $DFDD
+0058                 
+0059 E005            ZE005     EQU      $E005
+0060 E045            ZE045     EQU      $E045
+0061 E085            ZE085     EQU      $E085
+0062 E090            ZE090     EQU      $E090
+0063 E0C5            ZE0C5     EQU      $E0C5
+0064                 
+0065 F810            ZF810     EQU      $F810
+0066 FFF0            ZFFF0     EQU      $FFF0
+0067 FFFC            ZFFFC     EQU      $FFFC
+0068 FFFD            ZFFFD     EQU      $FFFD
+0069                           pag
+0070                 
+0071                 ****************************************************
+0072                 
+0073                 
+0074                 *
+0075                 * STARTUP ROUTINE
+0076                 * THIS ROUTINE INITIALIZES CERTAIN PARAMETERS, GETS
+0077                 * DATE FROM USER, AND EXECUTES A STARTUP.TXT FILE.
+0078                 
+0079 C400                      ORG      $C400
+0080                 
+0081 C400 2005       STAR      BRA      STAR0
+0082 C402 822E893A81 Vers      FCB      $82,$2E,$89,$3A,$81
+0083                 
+0084 C407 8639       STAR0     LDA      #$39      SET UP RTS
+0085 C409 B7D3FD               STA      >ZD3FD    disable re-entry to this code
+0086                 
+0087 C40C CCCD03               LDD      #$CD03    setup 'escape routine' addres
+0088 C40F FDCC16               STD      >ESCRTN
+0089                 
+0090 C412 FCD3F7               LDD      >TRMCHK   get address of terminal statu
+0091 C415 FDCD4F               STD      >STAT+1   set in FLEX status check jump
+0092                 
+0093 C418 FCD3F9               LDD      >TIMOUT   get address of terminal outpu
+0094 C41B FDCD10               STD      >OUTCH+1  set in FLEX out char jump
+0095 C41E FDCD13               STD      >OUTCH2+1 set in FLEX alternate out cha
+0096                 
+0097 C421 FCD3FB               LDD      >TIMINE   get address of terminal input
+0098 C424 FDCD0A               STD      >INCH+1   set in FLEX in char jump
+0099 C427 FDCD0D               STD      >INCH2+1  set in FLEX alt in char jump
+0100                 
+0101 C42A AD9FD3F5             JSR      [TRMINT]  do terminal init
+0102 C42E 8EC504               LDX      #ZC810    point to Flex version signon
+0103 C431 BDCD1E               JSR      >PSTRNG   print to terminal
+0104 C434 BDCD24               JSR      >PRCRLF   and CRLF
+0105                 
+0106 C437 FCCC4E     ZC43A     LDD      >PROMPT   get  current prompt pointer
+0107 C43A 3406                 PSHS     B,A       save it
+0108 C43C 8EC52C               LDX      #ZC82E    request for date
+0109 C43F BFCC4E               STX      >PROMPT   set new prompt pointer
+0110 C442 BDCD1E               JSR      >PSTRNG   do prompt
+0111 C445 BDCD1B               JSR      >INBUFF   get date
+0112 C448 3506                 PULS     B,A       restore prompt pointer
+0113 C44A FDCC4E               STD      >PROMPT
+0114 C44D 108ECC0E             LDY      #SMONTH   point Y reg to date regs
+0115 C451 8D5D                 BSR      ZC4A0     convert month from ascii
+0116 C453 25E2                 BCS      ZC43A     no good - retry
+0117                 
+0118 C455 8D59                 BSR      ZC4A0     convert day from ascii
+0119 C457 25DE                 BCS      ZC43A     no good - retry
+0120                 
+0121 C459 8D55                 BSR      ZC4A0     convert year from ascii
+0122 C45B 25DA                 BCS      ZC43A     no good - retry
+0123                 
+0124 C45D 108ED370             LDY      #STIME    point Y reg to system time re
+0125 C461 8D4D                 BSR      ZC4A0
+0126 C463 25D2                 BCS      ZC43A     no good - retry
+0127                 
+0128 C465 8D49                 BSR      ZC4A0
+0129 C467 25CE                 BCS      ZC43A     no good - retry
+0130                 
+0131 C469 8D45                 BSR      ZC4A0
+0132 C46B 25CA                 BCS      ZC43A     no good - retry
+0133 C46D 7FD373               CLR      STIME+3   clear tick counter
+0134                 
+0135 C470 BDCD24               JSR      >PRCRLF   do CRLF
+0136 C473 BDDE18               JSR      >DWARM    init the disk drivers
+0137 C476 8EC840               LDX      #SYSFCB   point to STARTUP.TXT FCB
+0138 C479 BDDE0F               JSR      >DCHECK   do disk check
+0139 C47C 8601                 LDA      #$01      set for read operation
+0140 C47E A784                 STA      ,X
+0141 C480 BDD406               JSR      >FMSCAL
+0142 C483 2709                 BEQ      ZC47E     no error
+0143                 
+0144 C485 A601                 LDA      $01,X
+0145 C487 8104                 CMPA     #$04      file not found error?
+0146 C489 263B                 BNE      ZC4B2     no -
+0147                 
+0148 C48B 7ECD03               JMP      >WARMST   yes - ignore file
+0149                 
+0150 C48E 108EC080   ZC47E     LDY      #LNBUFF   init line buffer pointer
+0151 C492 10BFCC14             STY      >LNBUFP
+0152 C496 C680                 LDB      #$80      set byte count to move
+0153                 
+0154 C498 BDD406     ZC488     JSR      >FMSCAL   get byte from startup.txt
+0155 C49B 2629                 BNE      ZC4B2     error
+0156 C49D 5A                   DECB               decrement count
+0157 C49E 2726                 BEQ      ZC4B2     done
+0158                 
+0159 C4A0 A7A0                 STA      ,Y+       put character in line buffer
+0160 C4A2 810D                 CMPA     #$0D      see if EOL character
+0161 C4A4 26F2                 BNE      ZC488     no - loop
+0162                 
+0163 C4A6 8604                 LDA      #$04      yes - close file
+0164 C4A8 A784                 STA      ,X
+0165 C4AA BDD406               JSR      >FMSCAL
+0166                 
+0167 C4AD 7ECD06               JMP      >RENTER   re-enter FLEX with command in
+0168                 
+0169                 *       convert ascii to decimal
+0170                 
+0171 C4B0 BDCD48     ZC4A0     JSR      >INDECM
+0172 C4B3 3410                 PSHS     X
+0173 C4B5 250D                 BCS      ZC4B0
+0174 C4B7 A6A4                 LDA      ,Y
+0175 C4B9 5D                   TSTB               see if any valid decimal digi
+0176 C4BA 1A01                 ORCC     #$01      set carry flag for error
+0177 C4BC 2704                 BEQ      ZC4AE     no - return error
+0178                 
+0179 C4BE A661                 LDA      $01,S     yes - get returned byte
+0180 C4C0 1CFE                 ANDCC    #$FE      set carry flag = 0 if no erro
+0181 C4C2 A7A0       ZC4AE     STA      ,Y+       put in callers buffer
+0182 C4C4 3586       ZC4B0     PULS     PC,B,A    return
+0183                 
+0184                 *       error in startup file - report it
+0185                 
+0186 C4C6 8EC4F1     ZC4B2     LDX      #ZC555    can't run startup message
+0187 C4C9 BDCD1E               JSR      >PSTRNG
+0188                 
+0189 C4CC 7ECD03               JMP      >WARMST
+0190                 
+0191                 *       fix up number of K of memory available message
+0192                 
+0193 C4CF 3414       ZC4BB     PSHS     X,B
+0194 C4D1 8EC529               LDX      #ZC82B    'K' message
+0195 C4D4 8604                 LDA      #$04
+0196 C4D6 2006                 BRA      ZC4CA
+0197                 
+0198                 *
+0199                 
+0200 C4D8 800A       ZC4C4     SUBA     #$0A
+0201 C4DA A784                 STA      ,X
+0202 C4DC 8601                 LDA      #$01
+0203                 
+0204                 *
+0205                 
+0206 C4DE AB82       ZC4CA     ADDA     ,-X
+0207 C4E0 8A30                 ORA      #$30
+0208 C4E2 A784                 STA      ,X
+0209 C4E4 8139                 CMPA     #$39
+0210 C4E6 22F0                 BHI      ZC4C4
+0211 C4E8 3594                 PULS     PC,X,B
+0212                 
+0213                 *       return status that no no RTC is available
+0214                 *       but MPT does exist
+0215                 
+0216 C4EA AD9FD3F1   ZC4D6     JSR      [TMINIT]  init timer
+0217 C4EE 8602                 LDA      #$02      set flag for MPT
+0218 C4F0 39                   RTS
+0219                 
+0220                 *       startup file error message
+0221                 
+0222 C4F1 43616E2774 ZC555     FCC      "Can't run STARTUP."
+          2072756E20 
+          5354415254 
+          55502E     
+0223 C503 04                   FCB      $04
+0224                 
+0225                 *       FLEX startup signon message
+0226                 
+0227 C504 1A         ZC810     FCB      $1A
+0228 C505 464C455820           FCC      "FLEX for MC6809 Version 2.9:2 - "
+          666F72204D 
+          4336383039 
+          2056657273 
+          696F6E2032 
+          2E393A3220 
+          2D20       
+0229 C525 00000000             FCB      $00,$00,$00,$00
+0230                 
+0231 C529 4B         ZC82B     FCC      "K"
+0232 C52A 15                   FCB      $15
+0233 C52B 04                   FCB      $04
+0234                 
+0235                 *       Date prompt
+0236                 
+0237 C52C 4461746520 ZC82E     FCC      "Date and TIME (MM/DD/YY HH/MM/SS)? "
+          616E642054 
+          494D452028 
+          4D4D2F4444 
+          2F59592048 
+          482F4D4D2F 
+          5353293F20 
+0238 C54F 04                   FCB      $04
+0239                 
+0240 C840                      ORG      SYSFCB
+0241                 
+0242 C840 FF                   FCB      $FF
+0243 C841 00                   FCB      $00
+0244 C842 00                   FCB      $00
+0245 C843 00                   FCB      $00
+0246 C844 7374617274           FCC      "startup"
+          7570       
+0247 C84B 00                   FCB      $00
+0248 C84C 747874               FCC      "txt"
+0249 C84F 00                   FCB      $00
+0250                 
+0251                 *************************************************
+0252                 *                                               *
+0253                 *       FLEX entry point after boot             *
+0254                 *                                               *
+0255                 *         this must start at $C850              *
+0256                 *                                               *
+0257                 *************************************************
+0258                 
+0259 C850 1A50       SFRES1    ORCC     #$50
+0260 C852 10CEC080             LDS      #LNBUFF
+0261 C856 FCDFDC               LDD      >ZDFDC
+0262 C859 BED0F0               LDX      >ZD0F0
+0263 C85C 3416                 PSHS     X,B,A
+0264 C85E 8E99AA               LDX      #$99AA
+0265 C861 108EC200             LDY      #STARTR+256
+0266 C865 C6FF                 LDB      #$FF
+0267                 
+0268 C867 1700B0     ZC867     LBSR     ZC91A
+0269 C86A BFD0F0               STX      >ZD0F0
+0270 C86D BCD0F0               CMPX     >ZD0F0
+0271 C870 2616                 BNE      ZC888
+0272 C872 3404                 PSHS     B
+0273                 
+0274 C874 1700A3     ZC874     LBSR     ZC91A
+0275 C877 F7D0F1               STB      >ZD0F1
+0276 C87A C001                 SUBB     #$01
+0277 C87C 24F6                 BCC      ZC874
+0278                 
+0279 C87E 3504                 PULS     B
+0280 C880 170097               LBSR     ZC91A
+0281 C883 F1D0F1               CMPB     >ZD0F1
+0282 C886 2701                 BEQ      ZC889
+0283 C888 4F         ZC888     CLRA
+0284                 
+0285 C889 A7A2       ZC889     STA      ,-Y
+0286 C88B 2703                 BEQ      ZC890
+0287 C88D 17FC3F               LBSR     ZC4BB
+0288                 
+0289 C890 C001       ZC890     SUBB     #$01
+0290 C892 24D3                 BCC      ZC867
+0291                 
+0292 C894 3516                 PULS     X,B,A
+0293 C896 FDFFFC               STD      >ZFFFC
+0294 C899 BFD0F0               STX      >ZD0F0
+0295 C89C 4F                   CLRA
+0296 C89D 8EC100               LDX      #STARTR
+0297 C8A0 F6DFDC               LDB      >ZDFDC
+0298 C8A3 C80F                 EORB     #$0F
+0299 C8A5 6F8B                 CLR      D,X
+0300 C8A7 F6DFDD               LDB      >ZDFDD
+0301 C8AA C80F                 EORB     #$0F
+0302 C8AC 6F8B                 CLR      D,X
+0303 C8AE 8D72                 BSR      ZC922
+0304 C8B0 5D                   TSTB
+0305 C8B1 2705                 BEQ      ZC8B8
+0306                 
+0307 C8B3 6FA0       ZC8B3     CLR      ,Y+
+0308 C8B5 5A                   DECB
+0309 C8B6 26FB                 BNE      ZC8B3
+0310                 
+0311 C8B8 3134       ZC8B8     LEAY     -$0C,Y
+0312 C8BA 8EFFF0               LDX      #ZFFF0
+0313 C8BD C610                 LDB      #$10
+0314                 
+0315 C8BF A6A0       ZC8BF     LDA      ,Y+
+0316 C8C1 A780                 STA      ,X+
+0317 C8C3 5A                   DECB
+0318 C8C4 26F9                 BNE      ZC8BF
+0319 C8C6 B6CC2B               LDA      >MEMEND
+0320 C8C9 48                   ASLA
+0321 C8CA 48                   ASLA
+0322 C8CB 48                   ASLA
+0323 C8CC 48                   ASLA
+0324 C8CD 5F                   CLRB
+0325 C8CE 830001               SUBD     #$0001
+0326 C8D1 FDCC2B               STD      >MEMEND
+0327 C8D4 17FC13               LBSR     ZC4D6
+0328 C8D7 BACC33               ORA      >CPUTYP
+0329 C8DA F6DFD0               LDB      >ZDFD0
+0330 C8DD C5F0                 BITB     #$F0
+0331 C8DF 2702                 BEQ      ZC8E3
+0332 C8E1 8A01                 ORA      #$01
+0333                 
+0334 C8E3 F6E005     ZC8E3     LDB      >ZE005
+0335 C8E6 2715                 BEQ      ZC8FD
+0336 C8E8 C1FF                 CMPB     #$FF
+0337 C8EA 2711                 BEQ      ZC8FD
+0338 C8EC F1E0C5               CMPB     >ZE0C5
+0339 C8EF 260C                 BNE      ZC8FD
+0340 C8F1 F1E045               CMPB     >ZE045
+0341 C8F4 2607                 BNE      ZC8FD
+0342 C8F6 F1E085               CMPB     >ZE085
+0343 C8F9 2602                 BNE      ZC8FD
+0344 C8FB 8A04                 ORA      #$04
+0345                 
+0346 C8FD BEE800     ZC8FD     LDX      >$E800
+0347 C900 3410                 PSHS     X
+0348 C902 8E99AA               LDX      #$99AA
+0349 C905 BFE800               STX      >$E800
+0350 C908 BCE800               CMPX     >$E800
+0351 C90B 3510                 PULS     X
+0352 C90D 2602                 BNE      ZC911
+0353 C90F 8A10                 ORA      #$10
+0354                 
+0355 C911 BFE800     ZC911     STX      >$E800
+0356 C914 B7CC33               STA      >CPUTYP
+0357 C917 7ECD00               JMP      >COLDST
+0358                 
+0359                 *
+0360                 
+0361 C91A 1F98       ZC91A     TFR      B,A
+0362 C91C 880F                 EORA     #$0F
+0363 C91E B7FFFD               STA      >ZFFFD
+0364 C921 39                   RTS
+0365                 
+0366                 *
+0367                 
+0368 C922 C60C       ZC922     LDB      #$0C
+0369 C924 108EDFD0             LDY      #ZDFD0
+0370                 *       LDX     #STARTR+16
+0371 C928 8EC100               LDX      #STARTR
+0372                 
+0373 C92B 8CC200     ZC92B     CMPX     #STARTR+256
+0374 C92E 270D                 BEQ      ZC93D
+0375 C930 A680                 LDA      ,X+
+0376 C932 27F7                 BEQ      ZC92B
+0377 C934 A7A0                 STA      ,Y+
+0378 C936 7CCC2B               INC      >MEMEND
+0379 C939 5A                   DECB
+0380 C93A 26EF                 BNE      ZC92B
+0381 C93C 39                   RTS
+0382                 
+0383 C93D 8EC100     ZC93D     LDX      #STARTR
+0384                 
+0385 C940 8CC110     ZC940     CMPX     #STARTR+16
+0386 C943 270C                 BEQ      ZC951
+0387 C945 A680                 LDA      ,X+
+0388 C947 27F7                 BEQ      ZC940
+0389 C949 A7A0                 STA      ,Y+
+0390 C94B 7CCC2B               INC      >MEMEND
+0391 C94E 5A                   DECB
+0392 C94F 26EF                 BNE      ZC940
+0393                 
+0394 C951 39         ZC951     RTS
+0395                 
+0396 C952                      END
+
+
+Symbol Table:
+
+ZC4A0            C4B0 : ZC4B0            C4C4 : INCH2            CD0C : 
+ZC874            C874 : ZC488            C498 : RENTER           CD06 : 
+ZC8FD            C8FD : ZE005            E005 : ZE045            E045 : 
+ZE085            E085 : ZE0C5            E0C5 : ZC43A            C437 : 
+TMINIT           D3F1 : ZC4CA            C4DE : Vers             C402 : 
+ZC82E            C52C : ZC93D            C93D : DCHECK           DE0F : 
+SMONTH           CC0E : TIMOUT           D3F9 : ZC4B2            C4C6 : 
+PRCRLF           CD24 : TIMON            D3EF : TIMOFF           D3ED : 
+ZC4BB            C4CF : ZDFD0            DFD0 : ZFFF0            FFF0 : 
+TIMINE           D3FB : TRMINT           D3F5 : ZC8BF            C8BF : 
+PROMPT           CC4E : INDECM           CD48 : ZC867            C867 : 
+MEMEND           CC2B : ZD3FD            D3FD : STARTR           C100 : 
+SFRES1           C850 : INBUFF           CD1B : ZE090            E090 : 
+ZD0F0            D0F0 : STIME            D370 : ZC810            C504 : 
+ZF810            F810 : ZC890            C890 : ZC4C4            C4D8 : 
+ZC888            C888 : ZC8B8            C8B8 : TRMCHK           D3F7 : 
+SYSFCB           C840 : DWARM            DE18 : CPUTYP           CC33 : 
+INCH             CD09 : ZD0F1            D0F1 : FMSCAL           D406 : 
+ZC940            C940 : STAR             C400 : STAT             CD4E : 
+COLDST           CD00 : ZC889            C889 : ZC47E            C48E : 
+ZC4AE            C4C2 : PSTRNG           CD1E : ZDFDC            DFDC : 
+ZFFFC            FFFC : ZC911            C911 : ZC555            C4F1 : 
+ZC951            C951 : ZC4D6            C4EA : OUTCH            CD0F : 
+IHNDLR           D3E7 : STAR0            C407 : OUTCH2           CD12 : 
+ZC91A            C91A : ZC82B            C529 : LNBUFF           C080 : 
+ZDFDD            DFDD : ZFFFD            FFFD : LNBUFP           CC14 : 
+ZC922            C922 : ZC8B3            C8B3 : ESCRTN           CC16 : 
+ZC8E3            C8E3 : ZC92B            C92B : WARMST           CD03 : 

@@ -1,0 +1,1358 @@
+0001                 * OPT PAG
+0002                           TTL      TSC 6809 DOS VERSION 2.92
+0003                           PAG
+0004                 *
+0005                 * TSC 6809 DISK OPERATING SYSTEM
+0006                 *
+0007                 * COPYRIGHT (C) 1979 BY
+0008                 *
+0009                 * TECHNICAL SYSTEMS CONSULTANTS, INC.
+0010                 * PO BOX 2570
+0011                 * WEST LAFAYETTE, INDIANA  47906
+0012                 *
+0013                 
+0014                 *
+0015                 * GLOBAL VARIABLE STARAGE
+0016                 *
+0017                 
+0018 C080            LINBUF    EQU      $C080
+0019 D40B            CURFCB    EQU      $D40B
+0020                 
+0021                 * ASCII CODE EQUATES
+0022                 
+0023 0000            NUL       EQU      $00
+0024 0004            EOT       EQU      $04
+0025                 
+0026                 * EXTERNAL LABEL EQUATES
+0027                 
+0028 C07F            STACK     EQU      $C07F
+0029 C400            LC400     EQU      $C400
+0030 C700            CHPR      EQU      $C700
+0031 CC3D            INDEX     EQU      $CC3D
+0032 CC3F            CRSAVE    EQU      $CC3F
+0033 CC43            RETADR    EQU      $CC43
+0034 CC45            STKSTR    EQU      $CC45
+0035 CC47            IOTEMP    EQU      $CC47
+0036 CC4A            OUTNUM    EQU      $CC4A
+0037 CC4B            COUNT     EQU      $CC4B
+0038 CC4C            GOTFIL    EQU      $CC4C
+0039 CC4D            TEMP      EQU      $CC4D
+0040                 
+0041 D3E5            INCHNE    EQU      $D3E5
+0042 D3E7            IHNDLR    EQU      $D3E7
+0043 D3E9            SWIVEC    EQU      $D3E9
+0044 D3EB            IRQVEC    EQU      $D3EB
+0045 D3F3            MONITR    EQU      $D3F3
+0046                 
+0047 D400            FMSINT    EQU      $D400
+0048 D403            FMSCLS    EQU      $D403
+0049 D406            FMS       EQU      $D406
+0050                 
+0051 DE18            DWARM     EQU      $DE18
+0052                 
+0053 C840                      ORG      $C840
+0054                 
+0055 C840 FF000000   SYSFCB    FCC      $FF,0,0,0
+0056 C844 7374617274           FCC      "startup",0,"txt",0
+          7570007478 
+          7400       
+0057                 
+0058 0080            LBL       EQU      128       LINE BUFFER LENGTH
+0059                 
+0060 CC00                      ORG      $CC00
+0061                 
+0062 CC00 08         TTYBS     FCB      $08       $CC00   BACK SPACE (^H)
+0063 CC01 18         TTYDEL    FCB      $18       $CC01   DELETE CHARACTER (^X)
+0064 CC02 3A         TTYEOL    FCB      $3A       $CC02   END OF LINE CHAR (:)
+0065 CC03 00         TTYDP     FCB      $00       $CC03   LINES PER SCREEN
+0066 CC04 00         COLCNT    FCB      $00       $CC04   COLUMNS PER LINE
+0067 CC05 06         TTYNL     FCB      $06       $CC05   LINE PADDING NULLS
+0068 CC06 00         TTYTB     FCB      $00       $CC06   TAB CHARACTER
+0069 CC07 00         TTYBE     FCB      $00       $CC07   BACK SPACE ECHO
+0070 CC08 00         TTYEJ     FCB      $00       $CC08   EJECT LENGTH
+0071 CC09 FF         TTYPS     FCB      $FF       $CC09   PAUSE CONTROL
+0072 CC0A 1B         TTYESC    FCB      $1B       $CC0A   ESCAPE CHARACTER
+0073 CC0B 00         SYSDRV    FCB      $00       $CC0B   SYSTEM DRIVE
+0074 CC0C 00         WRKDRV    FCB      $00       $CC0C   WORKING DRIVE
+0075 CC0D 00         SYSFLG    FCB      $00       $CC0D   SYSTEM FLAG
+0076 CC0E 00         SYSMTH    FCB      $00       $CC0E   SYSTEM DATE
+0077 CC0F 00         SYSDAY    FCB      $00       $CC0F
+0078 CC10 00         SYSYR     FCB      $00       $CC10
+0079 CC11 00         LSTTRM    FCB      $00       $CC11   LAST TERMINATOR
+0080 CC12 0000       USRTBL    FDB      $0000     $CC12   USER COMMAND TABLE
+0081 CC14 0000       BUFPNT    FDB      $0000     $CC14   LINE BUFFER POINTER
+0082 CC16 0000       RETRNR    FDB      $0000     $CC16   ESCAPE RETURN REG
+0083 CC18 00         CHAR      FCB      $00       $CC18   CHARACTER
+0084 CC19 00         PRVCHR    FCB      $00       $CC19   PREVIOUS CHARACTER
+0085 CC1A 00         LINE      FCB      $00       $CC1A   CURRENT LINE NUMBER
+0086 CC1B 0000       OFFSET    FDB      $0000     $CC1B   LOADER ADR OFFSET
+0087 CC1D 00         XFR       FCB      $00       $CC1D   TRANSFER FLAG
+0088 CC1E 0000       TADR      FDB      $0000     $CC1E   TRANSFER ADDRESS
+0089 CC20 00         ERRTYP    FCB      $00       $CC20   ERROR TYPE
+0090 CC21 00         SPCLS     FCB      $00       $CC21   SPECIAL IO FLAG
+0091 CC22 00         OUTCHN    FCB      $00       $CC22   OUTPUT CHANNEL BYTE
+0092 CC23 00         INCHNL    FCB      $00       $CC23   INPUT CHANNEL BYTE
+0093 CC24 0000       FILOUT    FDB      $0000     $CC24   OUTPUT FILE ADDRESS
+0094 CC26 0000       FILIN     FDB      $0000     $CC26   INPUT FILE ADDRESS
+0095 CC28 00         CMFLG     FCB      $00       $CC28   COMMAND FLAG
+0096 CC29 00         COLMN     FCB      $00       $CC29   CURRENT OUTPUT COL.
+0097 CC2A 00         TMRFLG    FCB      $00       $CC2A   TIMER FLAG UNUSED NOW
+0098 CC2B 0000       MEMEND    FDB      $0000     $CC2B   MEMORY END
+0099 CC2D 0000       ERRVEC    FDB      $0000     $CC2D   ERROR NAME VECTOR
+0100 CC2F 01         FILEKO    FCB      $01       $CC2F   FILE INPUT ECHO
+0101 CC30 00         FMSBSY    FCB      $00       $CC30   FMS IS BUSY FLAG
+0102 CC31 0000       CP        FDB      $0000     $CC31
+0103 CC33 00         CPUTYP    FCB      $00       $CC33
+0104 CC34 00         PRCNT     FCB      $00       $CC34   UNUSED NOW
+0105 CC35 0000000000 SPARES    FDB      0,0,0     $CC35   SPARE BYTES
+          00         
+0106 CC3B            XTEMP     RMB      2         $CC3B   INDEX TEMP
+0107 CC3D            INDEX     RMB      2         $CC3D   INDEX TEMP STORAGE
+0108 CC3F            CRSAVE    RMB      2         $CC3F   INDEX SAVE
+0109 CC41            DATPNT    RMB      2         $CC41   DATA POINTER
+0110 CC43            RETADR    RMB      2         $CC43   RETURN ADDRESS
+0111 CC45            STKSTR    RMB      2         $CC45   STACK STORAGE
+0112 CC47            IOTEMP    RMB      2         $CC47   IO TEMP STORE
+0113                 
+0114                 * SET MAPUP TO $FF TO DISABLE MAPPING
+0115                 
+0116 CC49 60         MAPUP     FCB      $60       $CC49   MAP FILENAMES TO UPPE
+0117 CC4A            OUTNUM    RMB      1         $CC4A   0 SUPPRESSION FLAG
+0118 CC4B            COUNT     RMB      1         $CC4B   SPARE COUNT REGISTER
+0119 CC4C            GOTFIL    RMB      1         $CC4C   FILE INDICATOR
+0120 CC4D            Temp      RMB      1         $CC4D   TEMPORARY REGISTER
+0121                 
+0122 CC4E CCAC       PPRMPT    FDB      PRMPT
+0123                 
+0124 CC50 574841543F WHATST    FCC      "WHAT?",EOT
+          04         
+0125 CC56 43414E2754 NOTRST    FCC      "CAN'T TRANSFER",EOT
+          205452414E 
+          5346455204 
+0126 CC65 4E4F542046 NONMST    FCC      "NOT FOUND",EOT
+          4F554E4404 
+0127 CC6F 4449534B20 DSKERS    FCC      "DISK ERROR #",EOT
+          4552524F52 
+          202304     
+0128 CC7C 4452495645 NTRST     FCC      "DRIVE NOT READY",EOT
+          204E4F5420 
+          5245414459 
+          04         
+0129 CC8C 47455400   COMTBL    FCC      "GET",0
+0130 CC90 D21A                 FDB      GET
+0131 CC92 4D4F4E00             FCC      "MON",0
+0132 CC96 D356                 FDB      MEXIT
+0133 CC98 00                   FCB      $00
+0134                 
+0135 CC99 2710       CONTBL    FDB      10000
+0136 CC9B 03E8                 FDB      1000
+0137 CC9D 0064                 FDB      100
+0138 CC9F 000A                 FDB      10
+0139                 
+0140 CCA1 6572726F72 ERNM      FCC      "errors",0,0,"sys"
+          7300007379 
+          73         
+0141 CCAC 2B2B2B04   PRMPT     FCC      "+++",EOT
+0142 CCB0             
+0143 CCC0                      ORG      $CCC0
+0144 CCC0             
+0145 CCC0 39         PINIT     RTS
+0146 CCC1             
+0147 CCD8                      ORG      $CCD8
+0148                 
+0149 CCD8 39         PCHK      RTS
+0150                 
+0151 CCE4                      ORG      $CCE4
+0152                 
+0153 CCE4 39         POUT      RTS
+0154                 
+0155 CCF8                      ORG      $CCF8
+0156                 
+0157 CCF8 01000000   PR0       FCB      $01,$00,$00,$00
+0158 CCFC 00000000   PR1       FCB      $00,$00,$00,$00
+0159 CD00             
+0160 CD00 7ECD57     COLDS     JMP      INIT      GO INITIALIZE
+0161 CD03 7ECD67     WARMS     JMP      ENTRY     WARM ENTRY POINT
+0162 CD06 7ECDAB     RENTER    JMP      DOS3      RE-ENTER DOS
+0163 CD09 7ECD09     INCH      JMP      *         INPUT ROUTINE
+0164 CD0C 7ECD0C     INCH2     JMP      *         TERMINAL INPUT
+0165 CD0F 7ECD0F     OUTCH     JMP      *         OUTPUT CHARACTER
+0166 CD12 7ECD12     OUTCH2    JMP      *         TERMINAL OUTPUT
+0167 CD15 7ECEF7     DGETCH    JMP      GETCHR    GET CHARACTER
+0168 CD18 7ECF3D     DPUTCH    JMP      PUTCHR    PUT CHARACTER
+0169 CD1B 7ECE2A     DINBUF    JMP      INBUF     INPUT TO BUFFER
+0170 CD1E 7ECE79     DPSTRN    JMP      PSTRNG    PRINT STRING
+0171 CD21 7ECFE9     DCLASS    JMP      CLASS     CLASSIFY CHARACTER
+0172 CD24 7ECEB1     DPCRLF    JMP      PCRLF     PRINT CR AND LF
+0173 CD27 7ED00A     DNEXTC    JMP      NXTCH     NEXT BUFFER CHAR
+0174 CD2A 7ECDE4     RSTRIO    JMP      RESTIO    RESTORE IO VECTORS
+0175 CD2D 7ED032     DFILSP    JMP      GETFIL    GET FILE SPEC
+0176 CD30 7ED1B0     DLOAD     JMP      LOAD      FILE LOADER
+0177 CD33 7ED0E7     DSETEX    JMP      SETEXT    SET NAME EXTENSION
+0178 CD36 7ED354     DADDBX    JMP      ADDBX     ADD B TO X
+0179 CD39 7ECF82     DOUTDE    JMP      OUTDEC    OUTPUT DECIMAL
+0180 CD3C 7ECFD0     DOUTHE    JMP      OUTHEX    OUT HEX CHARACTER
+0181 CD3F 7ED28A     DRPTER    JMP      RPTERR    REPORT ERROR
+0182 CD42 7ED13D     DGETHX    JMP      GETHEX    GET HEX NUMBER
+0183 CD45 7ECFCC     DOUTAD    JMP      OUTADR    OUT HEX ADDRESS
+0184 CD48 7ED186     DINDEC    JMP      INDEC     GET DECIMAL NUMBER
+0185 CD4B 7ED334     DDOCMD    JMP      DOCMD     DO COMMAND LINE
+0186 CD4E 7ECD4E     DSTAT     JMP      *         TERMINAL INPUT STATUS
+0187 CD51 7ECDFF     DSPR2     JMP      RTS
+0188 CD54 7ECDFF     DSPR3     JMP      RTS
+0189                 
+0190                 * INIT
+0191                 *
+0192                 * INIT IS THE INITIALIZATION ROUTINE.
+0193                 * ALL SYSTEM VARIABLES ARE SET HERE.
+0194                 
+0195 CD57 10CEC07F   INIT      LDS      #STACK    SET STACK
+0196 CD5B 7FCC11     INIT1     CLR      LSTTRM    CLEAR TERM BYTE
+0197 CD5E BDD400               JSR      FMSINT    INIT SYSTEM
+0198 CD61 7FCC28               CLR      CMFLG     CLEAR FLAG
+0199 CD64 BDD3FD               JSR      TSTSTR    CHECK FOR STARTUP
+0200                 
+0201                 * ENTRY
+0202                 *
+0203                 * ENTRY IS THE WARM START ENTRY POINT.
+0204                 * THE STACK IS RESET HERE.
+0205                 
+0206 CD67 10CEC07F   ENTRY     LDS      #STACK    SET STACK
+0207 CD6B BDDE18               JSR      DWARM     DO USER WARMSTART ROUTINE
+0208 CD6E 8ECD03               LDX      #WARMS    POINT TO WARM START
+0209 CD71 BFCC16               STX      RETRNR    SET RETURN REG
+0210 CD74 8EC700               LDX      #CHPR     SET SWI3 VECTOR
+0211 CD77 AF9FD3E9             STX      [SWIVEC]
+0212 CD7B BED3E7               LDX      IHNDLR    SET IRQ VECTOR
+0213 CD7E AF9FD3EB             STX      [IRQVEC]
+0214 CD82 8ECCF8               LDX      #PR0      SET PR # 0
+0215 CD85 BFCC31               STX      CP
+0216 CD88 7FCC34               CLR      PRCNT     SET STATUS
+0217 CD8B 7FCC4C     ENTRY2    CLR      GOTFIL    CLEAR FILE DESIG.
+0218 CD8E 8D54                 BSR      RESTIO    RESTORE IO
+0219                 
+0220                 * DOS
+0221                 *
+0222                 * DOS IS THE MAIN DOS LOOP
+0223                 
+0224 CD90 B6CC11     DOS       LDA      LSTTRM    CHECK TERMINATOR
+0225 CD93 B1CC02               CMPA     TTYEOL    WAS IT EOL?
+0226 CD96 2605                 BNE      DOS2
+0227 CD98 7CCC15               INC      BUFPNT+1  RESET BUFPNT
+0228 CD9B 200E                 BRA      DOS3
+0229                 
+0230 CD9D 7DCC28     DOS2      TST      CMFLG     TEST FLAG
+0231 CDA0 102605A2             LBNE     RETRN     DO CMD RETURN
+0232 CDA4 BDD403               JSR      FMSCLS    CLOSE ALL
+0233 CDA7 26B2                 BNE      INIT1     ERRORS?
+0234 CDA9 8D7A                 BSR      PRMTUSR   POINT TO PROMPT
+0235                 
+0236 CDAB BDD0D0     DOS3      JSR      SKPSPC    SKIP SPACES
+0237 CDAE 810D                 CMPA     #$0D      LONE CARRIAGE RET?
+0238 CDB0 27EB                 BEQ      DOS2
+0239                 
+0240 CDB2 8EC840     DOS4      LDX      #SYSFCB   POINT TO SYSTEM FCB
+0241 CDB5 7CCC0D               INC      SYSFLG    SET SYSTEM DRIVE
+0242 CDB8 BDD032               JSR      GETFIL    GET FILE NAME
+0243 CDBB 2516                 BCS      NFERR     ERROR?
+0244 CDBD 8ECC8C               LDX      #COMTBL   POINT TO TABLE
+0245 CDC0 8D3E                 BSR      LKNAM     LOOK FOR NAME
+0246 CDC2 2709                 BEQ      DOS6      FIND?
+0247 CDC4 BECC12               LDX      USRTBL    CHECK USER TABLE
+0248 CDC7 2707                 BEQ      DOS8      IS THERE ONE?
+0249 CDC9 8D35                 BSR      LKNAM     LOOK FOR NAME
+0250 CDCB 2603                 BNE      DOS8      FIND?
+0251                 
+0252 CDCD 6E9801     DOS6      JMP      [1,X]     JUMP TO COM ADDRESS
+0253                 
+0254 CDD0 BDD239     DOS8      JSR      LGO       DO LOAD & GO
+0255                 
+0256                 * NFERR
+0257                 
+0258 CDD3 8ECC50     NFERR     LDX      #WHATST   POINT TO STRING
+0259 CDD6 8615                 LDA      #$15      SET ERROR TYPE
+0260 CDD8 B7CC20     NFERR1    STA      ERRTYP
+0261 CDDB BDCE79     NFERR2    JSR      PSTRNG    OUTPUT IT
+0262 CDDE 7FCC11     NFERR4    CLR      LSTTRM    CLEAR TERM
+0263 CDE1 7ECD67               JMP      ENTRY     RESTART
+0264                 
+0265                 * RESTIO
+0266                 *
+0267                 * RESTIO RESTORES THE SYSTEM IO JUMP
+0268                 * VECTORS FOR INPUT, OUTPUT, & INIT.
+0269                 
+0270 CDE4 BECD13     RESTIO    LDX      OUTCH2+1  SET OUTPUT
+0271 CDE7 BFCD10               STX      OUTCH+1
+0272 CDEA BECD0D               LDX      INCH2+1   SET INPUT
+0273 CDED BFCD0A               STX      INCH+1
+0274 CDF0 7FCC23               CLR      INCHNL
+0275 CDF3 7FCC22               CLR      OUTCHN    CLEAR OUT CHAN
+0276 CDF6 7FCC21               CLR      SPCLS     SET SPECIALS
+0277 CDF9 7FCC26               CLR      FILIN     CLEAR FILES
+0278 CDFC 7FCC24               CLR      FILOUT
+0279 CDFF 39         RTS       RTS
+0280                 
+0281                 * LKNAM
+0282                 *
+0283                 * LKNAM LOOKS FOR A COMMAND
+0284                 * NAME IN A TABLE
+0285                 *
+0286                 *   ENTRY: X POINTS TO TABLE
+0287                 *   EXIT:  EQ IF FOUND
+0288                 *          X+1 POINTS TO ADR
+0289                 
+0290 CE00 108EC844   LKNAM     LDY      #SYSFCB+4 SET POINTER
+0291 CE04 A6A0       LKNAM3    LDA      0,Y+      GET A NAME CHAR
+0292 CE06 815F                 CMPA     #$5F      CHECK IF UPPER CASE
+0293 CE08 2302                 BLS      LKNAM4    SKIP IF NOT
+0294 CE0A 8020                 SUBA     #$20      MAKE UPPER
+0295                 
+0296 CE0C A180       LKNAM4    CMPA     0,X+      CHECK AGAINST TABLE
+0297 CE0E 2608                 BNE      LKNAM6    BRANCH IF NO MATCH
+0298 CE10 6D84                 TST      0,X       CHECK IF END
+0299 CE12 26F0                 BNE      LKNAM3    LOOP IF NOT
+0300                 
+0301 CE14 6DA4                 TST      0,Y       AT END OF NAME
+0302 CE16 270C                 BEQ      LKNAM8    GOT COMMAND IF SO
+0303                 
+0304 CE18 6D80       LKNAM6    TST      0,X+      END OF WORD?
+0305 CE1A 26FC                 BNE      LKNAM6    LOOP TIL SO
+0306 CE1C 3002                 LEAX     2,X       BUMP PAST ADDRESS
+0307 CE1E 6D84                 TST      0,X       END OF TABLE?
+0308 CE20 26DE                 BNE      LKNAM     REPEAT IF NOT
+0309 CE22 1CFB                 ANDCC    #$FB      CLZ SET NOT EQUAL
+0310 CE24 39         LKNAM8    RTS
+0311                 
+0312 CE25 BECC4E     PRMTUSR   LDX      PPRMPT
+0313 CE28 8D4F                 BSR      PSTRNG
+0314                 
+0315                 * INBUF
+0316                 *
+0317                 * INBUF INPUTS A LINE INTO THE LINE
+0318                 * BUFFER. DELETE AND BACK SPACE
+0319                 * CHARACTERS ARE CHECKED HERE.
+0320                 *
+0321                 *   ENTRY: NONE
+0322                 *   EXIT:  ALL REGISTERS CHANGED
+0323                 
+0324 CE2A 8EC080     INBUF     LDX      #LINBUF   POINT TO BUFFER
+0325 CE2D BFCC14               STX      BUFPNT    SET POINTER
+0326 CE30 BDCEF7     INBUF2    JSR      GETCHR    GO GET A CHARACTER
+0327 CE33 B1CC01               CMPA     TTYDEL    IS IT DELETE?
+0328 CE36 27ED                 BEQ      PRMTUSR
+0329 CE38 B1CC00               CMPA     TTYBS     IS IT BACK SPACE?
+0330 CE3B 2718                 BEQ      INBUF6
+0331 CE3D 810D                 CMPA     #$0D      IS IT CARRIAGE RET?
+0332 CE3F 270D                 BEQ      INBUF4
+0333 CE41 810A                 CMPA     #$0A      IS IT LF?
+0334 CE43 272B                 BEQ      INBUF7
+0335 CE45 811F                 CMPA     #$1F      IS IT CONTROL?
+0336 CE47 23E7                 BLS      INBUF2    IGNORE IF SO
+0337 CE49 8CC0FF     INBUF3    CMPX     #LINBUF+LBL-1
+0338 CE4C 27E2                 BEQ      INBUF2
+0339 CE4E A780       INBUF4    STA      0,X+      PUT CHAR IN BUFFER
+0340 CE50 810D                 CMPA     #$0D      IS IT RETURN?
+0341 CE52 26DC                 BNE      INBUF2    REPEAT IF NOT
+0342 CE54 39                   RTS
+0343                 
+0344 CE55 8CC080     INBUF6    CMPX     #LINBUF   FRONT OF BUFFER?
+0345 CE58 27CB                 BEQ      PRMTUSR
+0346 CE5A 301F                 LEAX     -1,X      DEC THE POINTER
+0347 CE5C B6CC07               LDA      TTYBE     GET ECHO CHAR
+0348 CE5F 8108                 CMPA     #8        IS IT ^H ?
+0349 CE61 2608                 BNE      INBU65
+0350 CE63 8620                 LDA      #$20      SETUP SPACE
+0351 CE65 BDCF62               JSR      PUTCH6    OUTPUT IT
+0352 CE68 B6CC07               LDA      TTYBE     GET CHAR
+0353 CE6B BDCF62     INBU65    JSR      PUTCH6    OUTPUT IT
+0354 CE6E 20C0                 BRA      INBUF2    REPEAT
+0355                 
+0356 CE70 860D       INBUF7    LDA      #$0D      OUTPUT CR
+0357 CE72 BDCF3D               JSR      PUTCHR
+0358 CE75 8620                 LDA      #$20      SETUP SPACE
+0359 CE77 20D0                 BRA      INBUF3
+0360                 
+0361                 * PSTRNG
+0362                 *
+0363                 * PSTRNG PRINTS THE STRING POINTED
+0364                 * TO BY THE INDEX REGISTER.
+0365                 *
+0366                 *   ENTRY: X POINTS TO STRING
+0367                 *   EXIT:  A & X CHANGED
+0368                 
+0369 CE79 8D36       PSTRNG    BSR      PCRLF     OUTPUT CR & LF
+0370 CE7B A684       PDATA1    LDA      0,X       GET A CHARACTER
+0371 CE7D 8104                 CMPA     #4        IS IT TERM?
+0372 CE7F 2773                 BEQ      PCRLF8
+0373 CE81 BDCF3D               JSR      PUTCHR    GO PUT CHAR.
+0374 CE84 3001                 LEAX     1,X       BUMP THE POINTER
+0375 CE86 20F3                 BRA      PDATA1    REPEAT IT
+0376                 
+0377                 * BREAK
+0378                 *
+0379                 * BREAK CHECKS FOR A CHARACTER ON INPUT CHANNEL,
+0380                 * RETURNS IMMEDIATELY IF NONE OR NOT ESCAPE.
+0381                 * IF ESCAPE, WAITS FOR ANOTHER OR FOR RETURN.
+0382                 
+0383 CE88 BDCD4E     BREAK     JSR      DSTAT     ANY INPUT CHARACTER?
+0384 CE8B 2769                 BEQ      PCRLF9    EXIT IF NOT
+0385                 
+0386 CE8D AD9FD3E5             JSR      [INCHNE]  ELSE, GET THE CHARACTER
+0387 CE91 847F                 ANDA     #$7F      STRIP UPPER BIT
+0388 CE93 B1CC0A               CMPA     TTYESC    AN ESCAPE?
+0389 CE96 265E                 BNE      PCRLF9    EXIT IF NOT
+0390                 
+0391 CE98 7FCC1A     BREAK1    CLR      LINE      CLEAR LINE COUNT
+0392 CE9B AD9FD3E5   BREAK2    JSR      [INCHNE]  WAIT FOR A CHARACTER
+0393 CE9F 847F                 ANDA     #$7F      STRIP UPPER BIT
+0394 CEA1 B1CC0A               CMPA     TTYESC    AN ESCAPE?
+0395 CEA4 2750                 BEQ      PCRLF9    CONTINUE IF SO
+0396 CEA6 810D                 CMPA     #$0D      IS IT A C.R.?
+0397 CEA8 26F1                 BNE      BREAK2    LOOP IF NEITHER
+0398 CEAA 7FCC11               CLR      LSTTRM    CLEAR TERMINATOR
+0399 CEAD 6E9FCC16             JMP      [RETRNR]  JUMP TO RETURN REG
+0400                 
+0401                 * PCRLF
+0402                 *
+0403                 * PCRLF OUTPUTS A CARRIAGE RETURN
+0404                 * AND A LINE FEED COMBINATION.
+0405                 *
+0406                 *   ENTRY: NONE
+0407                 *   EXIT:  A & B CHANGED
+0408                 
+0409 CEB1 7DCC21     PCRLF     TST      SPCLS     TEST SPECIALS
+0410 CEB4 2627                 BNE      PCRLF2
+0411 CEB6 8DD0                 BSR      BREAK     CHECK FOR BREAK
+0412 CEB8 B6CC03               LDA      TTYDP     GET COUNT
+0413 CEBB 2720                 BEQ      PCRLF2    IS IT OFF?
+0414                 
+0415 CEBD B1CC1A               CMPA     LINE      CHECK COUNT
+0416 CEC0 2218                 BHI      PCRL19
+0417 CEC2 7FCC1A               CLR      LINE      CLEAR COUNT
+0418 CEC5 7DCC09               TST      TTYPS     PAUSE ON?
+0419 CEC8 2702                 BEQ      PCRLF1
+0420 CECA 8DCC                 BSR      BREAK1    WAIT FOR ESC
+0421                 
+0422 CECC 3404       PCRLF1    PSHS     B         SAVE B
+0423 CECE F6CC08               LDB      TTYEJ     CHECK COUNT
+0424 CED1 2705                 BEQ      PCRL18
+0425 CED3 8D08       PCRL15    BSR      PCRLF2    OUTPUT CR & LF
+0426 CED5 5A                   DECB               DEC THE COUNT
+0427 CED6 26FB                 BNE      PCRL15
+0428                 
+0429 CED8 3504       PCRL18    PULS     B         RESTORE B
+0430 CEDA 7CCC1A     PCRL19    INC      LINE      BUMP LINE COUNT
+0431 CEDD 860D       PCRLF2    LDA      #$0D      SET UP CR
+0432 CEDF 8D5C                 BSR      PUTCHR    OUTPUT IT
+0433 CEE1 860A                 LDA      #$0A      SET UP LINE FEED
+0434 CEE3 8D58                 BSR      PUTCHR    OUTPUT IT
+0435 CEE5 3404                 PSHS     B         SAVE B
+0436 CEE7 F6CC05               LDB      TTYNL     CHECK NULLS
+0437 CEEA 2706                 BEQ      PCRLF6
+0438 CEEC 4F         PCRLF4    CLRA               SET UP NULL
+0439 CEED 8D4E                 BSR      PUTCHR    OUTPUT IT
+0440 CEEF 5A                   DECB               DEC THE COUNT
+0441 CEF0 26FA                 BNE      PCRLF4    REPEAT?
+0442                 
+0443 CEF2 3504       PCRLF6    PULS     B         RESTORE B
+0444 CEF4 1CFE       PCRLF8    ANDCC    #$FE      CLC  CLEAR ERRORS
+0445 CEF6 39         PCRLF9    RTS
+0446                 
+0447                 * GETCHR
+0448                 *
+0449                 * GETCHR GETS A CHARACTER FROM EITHER
+0450                 * THE STANDARD INPUT OR A FILE.
+0451                 *
+0452                 *   ENTRY: NONE
+0453                 *   EXIT:  A HAS CHARACTER
+0454                 
+0455 CEF7 7DCC23     GETCHR    TST      INCHNL    CHECK CHAN
+0456 CEFA 261A                 BNE      GETCH5
+0457 CEFC 7DCC26               TST      FILIN     FILE INPUT?
+0458 CEFF 2710                 BEQ      GETCH4
+0459 CF01 8D1A                 BSR      FILIO     DO FILE INPUT
+0460 CF03 7DCC2F               TST      FILEKO    ECHO CHARACTER?
+0461 CF06 2711                 BEQ      GETCH6
+0462 CF08 7DCC24               TST      FILOUT    OUTPUT FILE?
+0463 CF0B 270C                 BEQ      GETCH6
+0464 CF0D 8D53                 BSR      PUTCH6    ECHO CHARACTER
+0465 CF0F 2008                 BRA      GETCH6
+0466                 
+0467 CF11 BDCD09     GETCH4    JSR      INCH      GET CHAR
+0468 CF14 2003                 BRA      GETCH6
+0469                 
+0470 CF16 BDCD0C     GETCH5    JSR      INCH2     TERMINAL INPUT
+0471 CF19 7FCC1A     GETCH6    CLR      LINE      CLEAR COUNTER
+0472 CF1C 39                   RTS
+0473                 
+0474                 * FILIO
+0475                 *
+0476                 * FILIO DOSE A FMS CALL FOR CHARACTER
+0477                 * IO TRANSFER. CONTROL RETURNED TO
+0478                 * WARM START UPON ERROR.
+0479                 
+0480 CF1D BFCC47     FILIO     STX      IOTEMP    SAVE INDEX
+0481 CF20 BECC26               LDX      FILIN     GET INPUT FCB
+0482 CF23 2006                 BRA      FILIO4
+0483                 
+0484 CF25 BFCC47     FILIO2    STX      IOTEMP    SAVE X
+0485 CF28 BECC24               LDX      FILOUT    GET OUTPUT FCB
+0486                 
+0487 CF2B BDD406     FILIO4    JSR      FMS       CALL FMS
+0488 CF2E 2604                 BNE      FILIO6    ERROR?
+0489 CF30 BECC47               LDX      IOTEMP    RESTORE INDEX
+0490 CF33 39                   RTS
+0491                 
+0492 CF34 7FCC24     FILIO6    CLR      FILOUT    CLEAR CHAN
+0493 CF37 BDD28A               JSR      RPTERR    REPORT ERROR
+0494 CF3A 7ECD03               JMP      WARMS     DO WARM START
+0495                 
+0496                 * PUTCHR
+0497                 *
+0498                 * PUTCHR WRITES A CHARACTER TO EITHER
+0499                 * THE STANDARD OUTPUT OR TO A FILE.
+0500                 *
+0501                 *   ENTRY: CHARACTER IN A
+0502                 *   EXIT:  A MAY BE DESTROYED
+0503                 
+0504 CF3D 7DCC21     PUTCHR    TST      SPCLS     CHECK SPECIALS
+0505 CF40 2620                 BNE      PUTCH6
+0506 CF42 811F                 CMPA     #$1F      IS IT CONTROL?
+0507 CF44 2205                 BHI      PUTCH2
+0508 CF46 7FCC29               CLR      COLMN     CLEAR COL COUNT
+0509 CF49 2017                 BRA      PUTCH6    JUMP AHEAD
+0510                 
+0511 CF4B 7CCC29     PUTCH2    INC      COLMN     BUMP COUNTER
+0512 CF4E 3402                 PSHS     A         SAVE CHARACTER
+0513 CF50 B6CC04               LDA      COLCNT    GET COUNT
+0514 CF53 270B                 BEQ      PUTCH4    IS IT 0?
+0515 CF55 B1CC29               CMPA     COLMN     ENOUGH?
+0516 CF58 2406                 BCC      PUTCH4
+0517 CF5A BDCEB1               JSR      PCRLF     OUTPUT CR & LF
+0518 CF5D 7CCC29               INC      COLMN
+0519                 
+0520 CF60 3502       PUTCH4    PULS     A         RESTORE CHAR
+0521 CF62 3402       PUTCH6    PSHS     A
+0522 CF64 7DCC22               TST      OUTCHN    TEST CHANNEL
+0523 CF67 2613                 BNE      PUTCH7
+0524 CF69 7DCC24               TST      FILOUT    FILE OUTPUT?
+0525 CF6C 2704                 BEQ      PUTC68
+0526 CF6E 8DB5                 BSR      FILIO2    DO FMS CALL
+0527 CF70 200D                 BRA      PUTC75
+0528                 
+0529 CF72 7DCC26     PUTC68    TST      FILIN
+0530 CF75 2608                 BNE      PUTC75    FILE INPUT?
+0531 CF77 BDCD0F               JSR      OUTCH     OUTPUT IT
+0532 CF7A 2003                 BRA      PUTC75
+0533                 
+0534 CF7C BDCD12     PUTCH7    JSR      OUTCH2    CHAN 2 OUTPUT
+0535 CF7F 3502       PUTC75    PULS     A         RESTORE CHAR
+0536 CF81 39                   RTS
+0537                 
+0538                 * OUTDEC
+0539                 *
+0540                 * OUTPUT DECIMAL NUMBER POINTED TO
+0541                 * BY X. THE NS ENTRY PRINTS LEADING
+0542                 * ZEROES.
+0543                 *
+0544                 *   ENTRY: X POINTS TO NUMBER
+0545                 *   EXIT:  ALL CHANGED
+0546                 
+0547 CF82 7FCC4A     OUTDEC    CLR      OUTNUM    CLEAR FLAG
+0548 CF85 F7CC1D               STB      XFR       SET SUP FLAG
+0549 CF88 8604                 LDA      #4        SET COUNTER
+0550 CF8A B7CC4D               STA      TEMP      SAVE IT
+0551 CF8D EC84                 LDD      0,X       GET VALUE
+0552 CF8F 8ECC99               LDX      #CONTBL   POINT TO CONSTANTS
+0553                 
+0554 CF92 8D0B       OUTDE4    BSR      OUTDIG    OUTPUT DIGIT
+0555 CF94 3002                 LEAX     2,X       BUMP TO NEXT CONST.
+0556 CF96 7ACC4D               DEC      TEMP      DEC THE COUNT
+0557 CF99 26F7                 BNE      OUTDE4
+0558 CF9B 1F98                 TFR      B,A       GET LS DIGIT
+0559 CF9D 203D                 BRA      OUTHR     OUTPUT IT
+0560                 
+0561                 * OUTDIG
+0562                 *
+0563                 * OUTDIG OUTPUTS THE DIGITS PLACE
+0564                 * OF THE NUMBER IN A & B CORRESPONDING
+0565                 * TO THE CONSTANT POINTED TO BY X.
+0566                 *
+0567                 *   ENTRY: A & B CONTAIN NUMBER
+0568                 *          X POINTS TO CONSTANT
+0569                 *   EXIT:  ALL REGISTERS PRESERVED
+0570                 
+0571 CF9F 7FCC4B     OUTDIG    CLR      COUNT     CLEAR COUNTER
+0572 CFA2 10A384     OUTDI2    CMPD     0,X       COMPARE NUMBER
+0573 CFA5 2507                 BCS      OUTDI5
+0574 CFA7 A384                 SUBD     0,X       SUB VALUE
+0575 CFA9 7CCC4B               INC      COUNT     BUMP COUNTER
+0576 CFAC 20F4                 BRA      OUTDI2    REPEAT
+0577                 
+0578 CFAE 3402       OUTDI5    PSHS     A         SAVE A
+0579 CFB0 B6CC4B               LDA      COUNT     GET TOTAL
+0580 CFB3 2610                 BNE      OUTDI6    IS IT ZERO?
+0581 CFB5 7DCC4A               TST      OUTNUM    SUPRESS ZEROES?
+0582 CFB8 260B                 BNE      OUTDI6    NUMBER YET?
+0583 CFBA 7DCC1D               TST      XFR       NULL OR SPACE?
+0584 CFBD 270B                 BEQ      OUTDI8
+0585 CFBF 8620                 LDA      #$20      SETUP SPACE
+0586 CFC1 8D23                 BSR      OUTHR2    OUTPUT IT
+0587 CFC3 2005                 BRA      OUTDI8
+0588                 
+0589 CFC5 7CCC4A     OUTDI6    INC      OUTNUM    SHOW NUMBER
+0590 CFC8 8D12                 BSR      OUTHR     OUTPUT DIGIT
+0591                 
+0592 CFCA 3582       OUTDI8    PULS     A,PC      RESTORE A & RETURN
+0593                 
+0594                 * OUTADR
+0595                 *
+0596                 * OUTPUT FOUR HEX DIGITS POINTED
+0597                 * TO BY THE INDEX REGISTER.
+0598                 
+0599 CFCC 8D02       OUTADR    BSR      OUTHEX    OUT 2 DIGITS
+0600 CFCE 3001                 LEAX     1,X       BUMP POINTER
+0601                 
+0602                 * OUTHEX
+0603                 *
+0604                 * OUTHEX OUTPUTS THE BYTE IN HEX
+0605                 * POINTED TO BY X.
+0606                 *
+0607                 *   ENTRY: X POINTS TO BYTE
+0608                 *   EXIT:  B PRESERVED
+0609                 
+0610 CFD0 A684       OUTHEX    LDA      0,X       GET MSB
+0611 CFD2 8D04                 BSR      OUTHL     OUTPUT IT
+0612 CFD4 A684                 LDA      0,X       DO LSB
+0613 CFD6 2004                 BRA      OUTHR     OUTPUT IT
+0614                 
+0615 CFD8 44         OUTHL     LSRA               GET MSB TO LSB
+0616 CFD9 44                   LSRA
+0617 CFDA 44                   LSRA
+0618 CFDB 44                   LSRA
+0619                 
+0620 CFDC 840F       OUTHR     ANDA     #$0F      MASK OFF MSB
+0621 CFDE 8B30                 ADDA     #$30      ADD IN BIAS
+0622 CFE0 8139                 CMPA     #$39      OVER NUMBERS?
+0623 CFE2 2302                 BLS      OUTHR2
+0624                 
+0625 CFE4 8B07                 ADDA     #7        FINISH BIAS
+0626                 
+0627 CFE6 7ECF3D     OUTHR2    JMP      PUTCHR    OUTPUT IT
+0628                 
+0629                 * CLASS
+0630                 *
+0631                 * CLASS WILL CLASSIFY THE CHARACTER IN A.
+0632                 *
+0633                 *   ENTRY: CHARACTER IN A
+0634                 *   EXIT:  CS IF NOT 0-9 OR A-Z
+0635                 
+0636 CFE9 8130       CLASS     CMPA     #$30      IS IT 0?
+0637 CFEB 2514                 BCS      CLASS2    REPORT
+0638 CFED 8139                 CMPA     #$39      COMPARE TO 9
+0639 CFEF 2316                 BLS      CLASS4    IS IT NUMBER?
+0640 CFF1 8141                 CMPA     #$41      COMPARE TO A
+0641 CFF3 250C                 BCS      CLASS2    REPORT
+0642 CFF5 815A                 CMPA     #$5A      COMPARE TO Z
+0643 CFF7 230E                 BLS      CLASS4    IS IT LETTER?
+0644 CFF9 8161                 CMPA     #$61      CHECK FOR LOWER
+0645 CFFB 2504                 BCS      CLASS2    REPORT
+0646 CFFD 817A                 CMPA     #$7A      UPPER LIMIT
+0647 CFFF 2306                 BLS      CLASS4
+0648                 
+0649 D001 1A01       CLASS2    ORCC     #1        SEC  SET FOR NOT
+0650 D003 B7CC11               STA      LSTTRM
+0651 D006 39                   RTS
+0652                 
+0653 D007 1CFE       CLASS4    ANDCC    #$FE      CLC  SHOW ALPHANUMERIC
+0654 D009 39                   RTS
+0655                 
+0656                 * NXTCH
+0657                 *
+0658                 * NXTCH GETS THE NEXT CHARACTER FROM
+0659                 * THE LINE BUFFER.
+0660                 *
+0661                 *   ENTRY: NONE
+0662                 *   EXIT:  A HAS CHARACTER
+0663                 
+0664 D00A 3410       NXTCH     PSHS     X
+0665 D00C BECC14               LDX      BUFPNT    GET POINTER
+0666 D00F B6CC18               LDA      CHAR      GET OLD CHAR
+0667 D012 B7CC19               STA      PRVCHR    SAVE AS PREVIOUS
+0668 D015 A680       NXTCH3    LDA      0,X+      GET THE CHARACTER
+0669 D017 B7CC18               STA      CHAR      SAVE CHAR
+0670 D01A 810D                 CMPA     #$0D      IS IT RETURN?
+0671 D01C 2710                 BEQ      NXTCH4
+0672 D01E B1CC02               CMPA     TTYEOL    IS IT EOL?
+0673 D021 270B                 BEQ      NXTCH4
+0674 D023 BFCC14               STX      BUFPNT    SAVE NEW POSITION
+0675 D026 8120                 CMPA     #$20      CHECK FOR SPACE
+0676 D028 2604                 BNE      NXTCH4
+0677 D02A A184                 CMPA     0,X       NEXT CHAR SPACE?
+0678 D02C 27E7                 BEQ      NXTCH3    SKIP IF SO
+0679                 
+0680 D02E 8DB9       NXTCH4    BSR      CLASS     GO CLASSIFY
+0681 D030 3590                 PULS     X,PC      RESTORE REG. & RETURN
+0682                 
+0683                 * GETFIL
+0684                 *
+0685                 * GETFIL GETS A FILE SPECIFICATION FROM
+0686                 * THE INPUT STREAM.
+0687                 *
+0688                 *   ENTRY: X POINTS TO FCB
+0689                 *   EXIT:  ALL REGISTERS CHANGED
+0690                 
+0691 D032 8615       GETFIL    LDA      #21       SET PRE ERROR
+0692 D034 A701                 STA      1,X
+0693 D036 86FF                 LDA      #$FF      SET DRIVE NEG
+0694 D038 A703                 STA      3,X
+0695 D03A 6F04                 CLR      4,X
+0696 D03C 6F0C                 CLR      12,X      CLEAR EXTENSION
+0697 D03E BDD0D0               JSR      SKPSPC    SKIP SPACES
+0698 D041 8608                 LDA      #8        SET UP COUNT
+0699 D043 B7CC4B               STA      COUNT     SAVE IT
+0700 D046 8D34                 BSR      PRTM      PROCESS ITEM
+0701 D048 252E                 BCS      GETFI5    ERROR?
+0702 D04A 260F                 BNE      GETFI2    CHECK TERM
+0703 D04C 8D2E                 BSR      PRTM      PROCESS ITEM
+0704 D04E 2528                 BCS      GETFI5    ERROR?
+0705 D050 2609                 BNE      GETFI2    CHECK TERM
+0706 D052 BCCC3F               CMPX     CRSAVE    CHECK ERROR?
+0707 D055 276C                 BEQ      PRTM6
+0708 D057 8D23                 BSR      PRTM      PROCESS ITEM
+0709 D059 2368                 BLS      PRTM6     ERROR?
+0710                 
+0711 D05B BECC3F     GETFI2    LDX      CRSAVE    RESTORE POINTER
+0712 D05E 6D04                 TST      4,X       IS NAME NULL?
+0713 D060 2761                 BEQ      PRTM6
+0714 D062 6D03                 TST      3,X       CHECK DRIVE NUMBER
+0715 D064 2A0F                 BPL      GETFI4    SET YET?
+0716 D066 7DCC0D               TST      SYSFLG    SYSTEM DRIVE?
+0717 D069 2705                 BEQ      GETFI3
+0718 D06B B6CC0B               LDA      SYSDRV    GET SYSTEM DRIVE
+0719 D06E 2003                 BRA      GETF35
+0720                 
+0721 D070 B6CC0C     GETFI3    LDA      WRKDRV    GET WORK DRIVE
+0722 D073 A703       GETF35    STA      3,X       SET DRIVE NUMBER
+0723 D075 7FCC0D     GETFI4    CLR      SYSFLG    CLEAR FLAG
+0724 D078 BECC3F     GETFI5    LDX      CRSAVE    RESTORE FCB
+0725 D07B 39                   RTS
+0726                 
+0727                 * PRTM
+0728                 *
+0729                 * PRTM PROCESSES AN ITEM OF THE FILE SPEC
+0730                 
+0731 D07C 8D8C       PRTM      BSR      NXTCH     GET NEXT CHAR
+0732 D07E 2543                 BCS      PRTM6     ERROR?
+0733 D080 8139                 CMPA     #$39      CHECK IF NUMBER
+0734 D082 2215                 BHI      PRTM2
+0735 D084 BECC3F               LDX      CRSAVE    RESTORE POINTER
+0736 D087 6D03                 TST      3,X       CHECK FOR DRIVE NO
+0737 D089 2A38                 BPL      PRTM6     ERROR?
+0738 D08B 8403                 ANDA     #3        MASK DRIVE
+0739 D08D A703                 STA      3,X       SET DRIVE NUM
+0740 D08F BDD00A               JSR      NXTCH     GET NEXT CHAR
+0741 D092 242F                 BCC      PRTM6     ERROR?
+0742                 
+0743 D094 812E       PRTM1     CMPA     #$2E      CHECK TERM
+0744 D096 1CFE                 ANDCC    #$FE      CLC  CLEAR ERROR
+0745 D098 39                   RTS
+0746                 
+0747 D099 F6CC4B     PRTM2     LDB      COUNT     GET COUNT
+0748 D09C 2B25                 BMI      PRTM6     ERROR?
+0749 D09E 3404                 PSHS     B         SAVE COUNT
+0750 D0A0 C005                 SUBB     #5        SET NEW COUNT
+0751 D0A2 F7CC4B               STB      COUNT     SAVE IT
+0752 D0A5 3504                 PULS     B         RESTORE OLD
+0753                 
+0754 D0A7 B1CC49     PRTM3     CMPA     MAPUP     CHECK FOR LOWER CASE
+0755 D0AA 2502                 BCS      LD0AE     SKIP IF NOT
+0756 D0AC 8020                 SUBA     #$20      CONVERT TO UPPER
+0757                 
+0758 D0AE A704       LD0AE     STA      4,X       PUT CHARACTER
+0759 D0B0 3001                 LEAX     1,X       BUMP THE POINTER
+0760 D0B2 5A                   DECB               DEC THE COUNT
+0761 D0B3 BDD00A               JSR      NXTCH     GET NEXT CHAR
+0762 D0B6 2408                 BCC      PRTM5     TERM CHAR?
+0763 D0B8 812D                 CMPA     #$2D      IS IT HYPHEN?
+0764 D0BA 2704                 BEQ      PRTM5
+0765                 
+0766 D0BC 815F                 CMPA     #$5F      IS IT UNDER SCORE?
+0767 D0BE 2606                 BNE      PRTM7
+0768                 
+0769 D0C0 5D         PRTM5     TSTB               CHECK COUNT
+0770 D0C1 26E4                 BNE      PRTM3     REPEAT
+0771                 
+0772 D0C3 1A01       PRTM6     ORCC     #1        SEC  SET ERROR
+0773 D0C5 39                   RTS
+0774                 
+0775 D0C6 5D         PRTM7     TSTB               CHECK COUNT
+0776 D0C7 27CB                 BEQ      PRTM1     FINISHED?
+0777                 
+0778 D0C9 6F04                 CLR      4,X       CLEAR REST
+0779 D0CB 3001                 LEAX     1,X       BUMP POINTER
+0780 D0CD 5A                   DECB               DEC THE COUNT
+0781 D0CE 20F6                 BRA      PRTM7     REPEAT
+0782                 
+0783                 * SKPSPC
+0784                 *
+0785                 * SKPSPC SKIPS SPACES IN THE BUFFER
+0786                 *
+0787                 *   ENTRY: NONE
+0788                 *   EXIT:  ALL CHANGED
+0789                 
+0790 D0D0 BFCC3F     SKPSPC    STX      CRSAVE    SAVE INDEX
+0791 D0D3 BECC14               LDX      BUFPNT    GET POINTER
+0792                 
+0793 D0D6 A684       SKPSP2    LDA      0,X       GET CHARACTER
+0794 D0D8 8120                 CMPA     #$20      IS IT SPACE?
+0795 D0DA 2604                 BNE      SKPSP4
+0796                 
+0797 D0DC 3001                 LEAX     1,X       BUMP TO NEXT
+0798 D0DE 20F6                 BRA      SKPSP2    REPEAT
+0799                 
+0800 D0E0 BFCC14     SKPSP4    STX      BUFPNT    SET POINTER
+0801 D0E3 BECC3F               LDX      CRSAVE    RESTORE REGISTER
+0802 D0E6 39                   RTS
+0803                 
+0804                 * SETEXT
+0805                 *
+0806                 * SETEXT SETS A DEFAULT NAME EXTENSION
+0807                 * IF THE EXTENSION IS NULL. IT IS SET
+0808                 * ACCORDING TO THE CODE IN A.
+0809                 *
+0810                 *   ENTRY: A HAS CODE
+0811                 *          X POINTS TO FCB
+0812                 *   EXIT:  ALL REGISTERS CHANGED
+0813                 
+0814 D0E7 3430       SETEXT    PSHS     X,Y       SAVE REGISTERS
+0815 D0E9 E60C                 LDB      12,X      GET FIRST EXT
+0816 D0EB 261E                 BNE      SETEX6    NULL?
+0817                 
+0818 D0ED 318C1D               LEAY     <EXTTBL,PCR POINT TO TABLE
+0819 D0F0 810F                 CMPA     #$0F      CHECK RANGE
+0820 D0F2 2217                 BHI      SETEX6
+0821 D0F4 C603                 LDB      #3        GET TO DESIRED EXT.
+0822 D0F6 3D                   MUL
+0823 D0F7 31AB                 LEAY     D,Y
+0824 D0F9 C603                 LDB      #3        GET EXTENSION LENGTH
+0825                 
+0826 D0FB A6A0       SETEX4    LDA      0,Y+      GET CHAR
+0827 D0FD B1CC49               CMPA     MAPUP     IS IT LOWER CASE?
+0828 D100 2502                 BCS      SETEX5    NO
+0829 D102 8020                 SUBA     #$20      YES - MAKE UPPER CASE
+0830                 
+0831 D104 A70C       SETEX5    STA      12,X      PUT IN EXT
+0832 D106 3001                 LEAX     1,X       BUMP POINTER
+0833 D108 5A                   DECB               THE COUNT
+0834 D109 26F0                 BNE      SETEX4    FINISHED?
+0835                 
+0836 D10B 35B0       SETEX6    PULS     X,Y,PC    RESTORE REGS. & RETURN
+0837                 
+0838                 * EXTTBL
+0839                 *
+0840                 * EXTENSION CODE TABLE
+0841                 
+0842 D10D 62696E     EXTTBL    FCC      "bin"     CODE 0
+0843 D110 747874               FCC      "txt"     CODE 1
+0844 D113 636D64               FCC      "cmd"     CODE 2
+0845 D116 626173               FCC      "bas"     CODE 3
+0846 D119 737973               FCC      "sys"     CODE 4
+0847 D11C 62616B               FCC      "bak"     CODE 5
+0848 D11F 736372               FCC      "scr"     CODE 6
+0849 D122 646174               FCC      "dat"     CODE 7
+0850 D125 626163               FCC      "bac"     CODE 8
+0851 D128 646972               FCC      "dir"     CODE 9
+0852 D12B 707274               FCC      "prt"     CODE 10
+0853 D12E 6F7574               FCC      "out"     CODE 11
+0854 D131 72656C               FCC      "rel"     CODE 12
+0855 D134 726669               FCC      "rfi"     CODE 13
+0856 D137 646576               FCC      "dev"     CODE 14
+0857 D13A 617263               FCC      "arc"     CODE 15
+0858                 
+0859                 * GETHEX
+0860                 *
+0861                 * GETHEX GETS A HEX VALUE FROM THE
+0862                 * INPUT BUFFER.  B IS NON ZERO IF
+0863                 * THERE WAS A NUMBER.
+0864                 *
+0865                 *   ENTRY: NONE
+0866                 *   EXIT:  CS IF ERROR
+0867                 *          VALUE IN X
+0868                 
+0869 D13D BDD229     GETHEX    JSR      CLROFS    CLEAR SPACE & B REG
+0870 D140 BDD00A     GETHE2    JSR      NXTCH     GET CHARACTER
+0871 D143 2522                 BCS      GETHE8    GRAPHICS?
+0872                 
+0873 D145 8D26                 BSR      TSTHEX    TEST FOR HEX
+0874 D147 2518                 BCS      GETHE6    ERROR?
+0875                 
+0876 D149 3404                 PSHS     B         SAVE IND
+0877 D14B C604                 LDB      #4        SET UP COUNT
+0878                 
+0879 D14D 78CC1C     GETHE4    ASL      OFFSET+1  SHIFT OVER 4
+0880 D150 79CC1B               ROL      OFFSET
+0881 D153 5A                   DECB               DEC THE COUNT
+0882 D154 26F7                 BNE      GETHE4    LOOP TIL DONE
+0883                 
+0884 D156 3504                 PULS     B         RESTORE IND
+0885 D158 BBCC1C               ADDA     OFFSET+1
+0886 D15B B7CC1C               STA      OFFSET+1  SET NEW DIGIT
+0887 D15E 5C                   INCB               SET INDICATOR
+0888 D15F 20DF                 BRA      GETHE2
+0889                 
+0890 D161 BDD00A     GETHE6    JSR      NXTCH     GET CHARACTER
+0891 D164 24FB                 BCC      GETHE6    WAIT FOR TERM
+0892 D166 39                   RTS
+0893                 
+0894 D167 BECC1B     GETHE8    LDX      OFFSET    GET VALUE
+0895 D16A 1CFE       GETHE9    ANDCC    #$FE      CLC  CLEAR ERRORS
+0896 D16C 39                   RTS
+0897                 
+0898                 * TSTHEX
+0899                 *
+0900                 * TEST FOR VALID HEX CHARACTER
+0901                 
+0902 D16D 815F       TSTHEX    CMPA     #$5F
+0903 D16F 2302                 BLS      TSTHE2
+0904 D171 8020                 SUBA     #$20
+0905                 
+0906 D173 8047       TSTHE2    SUBA     #$47      REMOVE BIAS
+0907 D175 2A0C                 BPL      TSTHE4
+0908                 
+0909 D177 8B06                 ADDA     #6        CHECK RANGE
+0910 D179 2A04                 BPL      TSTHE3    ERROR?
+0911                 
+0912 D17B 8B07                 ADDA     #7        ADD BACK IN
+0913 D17D 2A04                 BPL      TSTHE4    ERROR?
+0914                 
+0915 D17F 8B0A       TSTHE3    ADDA     #$0A      FINAL BIAS
+0916 D181 2AE7                 BPL      GETHE9    NO ERROR
+0917                 
+0918 D183 1A01       TSTHE4    ORCC     #1
+0919 D185 39                   RTS
+0920                 
+0921                 * INDEC
+0922                 *
+0923                 * INPUT DECIMAL NUMBER.
+0924                 *
+0925                 *   ENTRY: NONE
+0926                 *   EXIT:  CS IF ERROR
+0927                 *          VALUE IN X
+0928                 *          B=0 IF NO NUMBER
+0929                 
+0930 D186 BDD229     INDEC     JSR      CLROFS    CLEAR SPACE & B REG.
+0931 D189 BDD00A     INDEC2    JSR      NXTCH     GET CHARACTER
+0932 D18C 25D9                 BCS      GETHE8    TERM?
+0933 D18E 8139                 CMPA     #$39      CHECK FOR NUMBER
+0934 D190 22CF                 BHI      GETHE6
+0935 D192 840F                 ANDA     #$0F      MASK NUMBER
+0936 D194 3404                 PSHS     B         SAVE COUNT
+0937 D196 3402                 PSHS     A         SAVE NUMBER
+0938 D198 FCCC1B               LDD      OFFSET    GET VALUE
+0939 D19B 58                   ASLB               DO TIMES 8
+0940 D19C 49                   ROLA
+0941 D19D 58                   ASLB
+0942 D19E 49                   ROLA
+0943 D19F F3CC1B               ADDD     OFFSET    PLUS TIMES 2
+0944 D1A2 58                   ASLB
+0945 D1A3 49                   ROLA
+0946 D1A4 EBE0                 ADDB     0,S+      ADD IN NEW DIGIT
+0947 D1A6 8900                 ADCA     #0
+0948 D1A8 FDCC1B               STD      OFFSET    SAVE RESULT
+0949 D1AB 3504                 PULS     B         GET COUNT
+0950 D1AD 5C                   INCB               BUMP COUNT
+0951 D1AE 20D9                 BRA      INDEC2    REPEAT
+0952                 
+0953                 * LOAD
+0954                 *
+0955                 * LOAD IS THE SYSTEM BINARY LOADER
+0956                 *
+0957                 *   ENTRY: X POINTS TO FCB
+0958                 *   EXIT:  WARMS IF ERROR
+0959                 *          ALL RGISTERS CHANGED
+0960                 
+0961 D1B0 7FCC1D     LOAD      CLR      XFR       CLEAR TRANSFER FLAG
+0962 D1B3 8D3D       LOAD2     BSR      DOFMS     DO READ
+0963 D1B5 8102                 CMPA     #2        BEGIN DESIGNATOR?
+0964 D1B7 2715                 BEQ      LOAD4     YES - GET DATA COUNT
+0965                 
+0966 D1B9 8116                 CMPA     #$16      TRANSFER DESIG?
+0967 D1BB 26F6                 BNE      LOAD2
+0968 D1BD 8D33                 BSR      DOFMS     GET NEXT CHAR
+0969 D1BF B7CC1E               STA      TADR      SET TRANSFER ADR
+0970 D1C2 8D2E                 BSR      DOFMS     GET LSB
+0971 D1C4 B7CC1F               STA      TADR+1    SAVE IT
+0972 D1C7 8601                 LDA      #1        SET NON ZERO
+0973 D1C9 B7CC1D               STA      XFR       SET TRANSFER FLAG
+0974 D1CC 20E5                 BRA      LOAD2     REPEAT
+0975                 
+0976 D1CE 8D22       LOAD4     BSR      DOFMS     GET NEXT CHAR
+0977 D1D0 1F89                 TFR      A,B       SAVE IT
+0978 D1D2 8D1E                 BSR      DOFMS     GET REST
+0979 D1D4 1E89                 EXG      A,B       PUT IN ORDER
+0980 D1D6 F3CC1B               ADDD     OFFSET    OFFSET + ADDRESS
+0981 D1D9 FDCC3D               STD      INDEX     SAVE POINTER
+0982 D1DC 8D14                 BSR      DOFMS     GET DATA COUNT
+0983 D1DE 1F89                 TFR      A,B       MOVE TO B
+0984 D1E0 4D                   TSTA               ZERO COUNT?
+0985 D1E1 27D0                 BEQ      LOAD2     YES -
+0986                 
+0987 D1E3 8D0D       LOAD6     BSR      DOFMS     GET CHARACTER
+0988 D1E5 BECC3D               LDX      INDEX     GET POINTER
+0989 D1E8 A780                 STA      0,X+      SAVE IN MEMORY
+0990 D1EA BFCC3D               STX      INDEX     SAVE POINTER
+0991 D1ED 5A                   DECB               DEC THE COUNT
+0992 D1EE 26F3                 BNE      LOAD6     FINISHED?
+0993 D1F0 20C1                 BRA      LOAD2     REPEAT
+0994                 
+0995                 * DOFMS
+0996                 *
+0997                 * DOFMS DOES AN IO TRANSFER TO THE
+0998                 * FILE MGMNT SYSTEM.
+0999                 *
+1000                 *   ENTRY: NONE
+1001                 *   EXIT:  SAME AS FMS COMMAND
+1002                 
+1003 D1F2 8EC840     DOFMS     LDX      #SYSFCB   POINT TO FCB
+1004 D1F5 BDD406               JSR      FMS       DO COMMAND
+1005 D1F8 2711                 BEQ      LD20B     ERROR?
+1006                 
+1007 D1FA A601                 LDA      1,X       GET ERROR CODE
+1008 D1FC 8108                 CMPA     #8        IS IT EOF?
+1009 D1FE 260E                 BNE      DOFMS4
+1010                 
+1011 D200 3262                 LEAS     2,S       FIX STACK
+1012 D202 8604                 LDA      #4        SET CMND
+1013 D204 A784                 STA      0,X
+1014 D206 BDD406               JSR      FMS       CALL FMS
+1015 D209 260A                 BNE      DOFMS6    ERROR?
+1016                 
+1017 D20B 1CFE       LD20B     ANDCC    #$FE      CLC  CLEAR ERROR
+1018 D20D 39                   RTS
+1019                 
+1020 D20E B7CC20     DOFMS4    STA      ERRTYP    SET TYPE
+1021 D211 8104                 CMPA     #4        NO FILE ERROR?
+1022 D213 2772                 BEQ      LD287     YES -
+1023                 
+1024 D215 8D73       DOFMS6    BSR      RPTERR    REPORT ERROR
+1025 D217 7ECDDE               JMP      NFERR4    DO WARM START
+1026                 
+1027                 * GET
+1028                 *
+1029                 * GET IS THE DOS COMMAND USED TO
+1030                 * LOAD BINARY FILES INTO MEMORY.
+1031                 *
+1032                 *   ENTRY: NONE
+1033                 *   EXIT:  ALL REGISTERS CHANGED
+1034                 
+1035 D21A 8600       GET       LDA      #0        SET DEFAULT CODE
+1036 D21C 8D35                 BSR      GETOPN    GET & OPEN FILE
+1037 D21E 250F                 BCS      TSTNAM    NO NAME?
+1038 D220 8D07                 BSR      CLROFS    CLEAR OFFSET
+1039 D222 7CCC4C               INC      GOTFIL    SET FILE INDIC.
+1040 D225 8D89                 BSR      LOAD      GO DO LOAD
+1041 D227 20F1                 BRA      GET       REPEAT PROCESS
+1042                 
+1043                 * CLROFS
+1044                 *
+1045                 * CLEARS STORAGE LOC. OFFSET
+1046                 
+1047 D229 4F         CLROFS    CLRA
+1048 D22A 5F                   CLRB
+1049 D22B FDCC1B               STD      OFFSET
+1050 D22E 39                   RTS
+1051                 
+1052                 * TSTNAM
+1053                 *
+1054                 * TSTNAM TESTS TO SEE IF ANY NAMES HAVE
+1055                 * BEEN PROCESSED YET.
+1056                 
+1057 D22F F6CC4C     TSTNAM    LDB      GOTFIL    CHECK FLAG
+1058 D232 1027FB9D             LBEQ     NFERR     REPORT ERROR
+1059 D236 7ECD03               JMP      WARMS     ALL DONE
+1060                 
+1061                 * LGO
+1062                 *
+1063                 * LGO IS THE SYSTEM LOAD AND GO MODULE.
+1064                 *
+1065                 *   ENTRY: NONE
+1066                 *   EXIT:  ALL CHANGED
+1067                 
+1068 D239 8602       LGO       LDA      #2        SET DEFAULT CODE
+1069 D23B 8D22                 BSR      GETOP2    OPEN FILE
+1070 D23D 8DEA                 BSR      CLROFS    CLEAR OFFSET
+1071 D23F BDD1B0               JSR      LOAD      GO DO LOAD
+1072                 
+1073 D242 F6CC1D               LDB      XFR       CHECK FOR TRANSFER ADR
+1074 D245 2704                 BEQ      LGO2
+1075 D247 6E9FCC1E             JMP      [TADR]    JUMP TO XFR ADR
+1076                 
+1077 D24B 8ECC56     LGO2      LDX      #NOTRST   POINT TO STRING
+1078 D24E 8681                 LDA      #$81      SET TYPE
+1079 D250 7ECDD8               JMP      NFERR1    REPORT
+1080                 
+1081                 * GETOPN
+1082                 *
+1083                 * GETOPN GETS THE FILES NAME FROM
+1084                 * THE INPUT BUFFER AND OPENS THE FILE
+1085                 *
+1086                 *   ENTRY: A HAS DEFAULT CODE
+1087                 *   EXIT:  ALL CHANGED
+1088                 
+1089 D253 3402       GETOPN    PSHS     A         SAVE CODE
+1090 D255 8EC840               LDX      #SYSFCB   POINT TO FCB
+1091 D258 BDD032               JSR      GETFIL    GET FILE SPEC
+1092 D25B 3502                 PULS     A         RESTORE CODE
+1093 D25D 251A                 BCS      GETOP4    ERROR?
+1094                 
+1095 D25F 8EC840     GETOP2    LDX      #SYSFCB   POINT TO FCB
+1096 D262 BDD0E7               JSR      SETEXT    SET EXTENSION
+1097 D265 8EC840               LDX      #SYSFCB   POINT TO FCB
+1098 D268 8601                 LDA      #1        SET OPEN CODE
+1099 D26A A784                 STA      0,X       SET COMMAND
+1100 D26C BDD1F2               JSR      DOFMS     GO DO FMS
+1101 D26F 102500BB             LBCS     NONMER    REPORT ANY ERROR
+1102 D273 86FF                 LDA      #$FF      SET NEG
+1103 D275 A7883B               STA      59,X      SET FOR NO SPC COMP
+1104 D278 39                   RTS
+1105                 
+1106 D279 B6CC11     GETOP4    LDA      LSTTRM    GET TERM
+1107 D27C 810D                 CMPA     #$0D      IS TERM CR?
+1108 D27E 2707                 BEQ      LD287     YES -
+1109                 
+1110 D280 B1CC02               CMPA     TTYEOL    IS IT EOL?
+1111 D283 1026FB4C             LBNE     NFERR     ERROR IF NEITHER
+1112                 
+1113 D287 1A01       LD287     ORCC     #1        SEC  SET TERM INDICATOR
+1114 D289 39                   RTS
+1115                 
+1116                 * RPTERR
+1117                 *
+1118                 * RPTERR REPORTS FMS ERRORS
+1119                 
+1120 D28A 3430       RPTERR    PSHS     X,Y       SAVE REGISTERS
+1121 D28C A601                 LDA      1,X       GET ERR NUM
+1122 D28E B7CC20               STA      ERRTYP    SAVE IT
+1123 D291 2763                 BEQ      RPTE44
+1124 D293 BDCDE4               JSR      RESTIO    RESTORE IO
+1125 D296 10BECC2D             LDY      ERRVEC    GET ERR VECTOR
+1126 D29A 2608                 BNE      RPTER1
+1127 D29C 8110                 CMPA     #$10      NOT READY ERROR
+1128 D29E 2758                 BEQ      RPTER6
+1129 D2A0 108ECCA1             LDY      #ERNM     POINT TO STRING
+1130                 
+1131 D2A4 8EC840     RPTER1    LDX      #SYSFCB   POINT TO FCB
+1132 D2A7 6D02                 TST      2,X
+1133 D2A9 2709                 BEQ      RPTER2
+1134                 
+1135 D2AB 8604                 LDA      #4        CLOSE FILE IN FCB
+1136 D2AD A784                 STA      0,X
+1137 D2AF BDD406               JSR      FMS       CALL FMS
+1138 D2B2 262E                 BNE      RPTER4
+1139                 
+1140 D2B4 8EC838     RPTER2    LDX      #SYSFCB-8 SET TO FCB
+1141 D2B7 C60B                 LDB      #$0B      SET COUNT
+1142 D2B9 8D6E                 BSR      RPTER9    COPY NAME TO FCB
+1143 D2BB 8EC840               LDX      #SYSFCB
+1144 D2BE B6CC0B               LDA      SYSDRV    SET ALL DRIVES ** CHANGED TO 
+1145 D2C1 A703                 STA      3,X
+1146 D2C3 8601                 LDA      #1        SET EXTENSION
+1147 D2C5 A784                 STA      0,X       OPEN FOR READ
+1148 D2C7 BDD406               JSR      FMS
+1149 D2CA 2616                 BNE      RPTER4    ERROR?
+1150                 
+1151 D2CC B6CC20               LDA      ERRTYP    GET ERROR NUM
+1152 D2CF 4A                   DECA               CALCULATE REC NUM
+1153 D2D0 47                   ASRA
+1154 D2D1 47                   ASRA
+1155 D2D2 4C                   INCA
+1156 D2D3 6F8820               CLR      32,X      SET LRN IN FCB
+1157 D2D6 A78821               STA      33,X
+1158 D2D9 8615                 LDA      #21
+1159 D2DB A784                 STA      0,X       DO POSITION
+1160 D2DD BDD406               JSR      FMS
+1161 D2E0 271E                 BEQ      RPTER7
+1162                 
+1163 D2E2 8ECC6F     RPTER4    LDX      #DSKERS   POINT TO STRING
+1164 D2E5 BDCE79               JSR      PSTRNG    OUTPUT IT
+1165 D2E8 BECC3F               LDX      CRSAVE    RESTORE TO FCB
+1166 D2EB B6CC20               LDA      ERRTYP    GET ERR NUM
+1167 D2EE A701                 STA      1,X
+1168 D2F0 6F84                 CLR      0,X
+1169 D2F2 5F                   CLRB
+1170 D2F3 BDCF82               JSR      OUTDEC    OUTPUT NUMBER
+1171                 
+1172 D2F6 35B0       RPTE44    PULS     X,Y,PC    RESTORE REGS. & RETURN
+1173                 
+1174 D2F8 8ECC7C     RPTER6    LDX      #NTRST    POINT TO STRING
+1175 D2FB BDCE79               JSR      PSTRNG    OUTPUT IT
+1176 D2FE 20F6                 BRA      RPTE44
+1177                 
+1178 D300 BDCEB1     RPTER7    JSR      PCRLF     OUTPUT CR & LF
+1179 D303 8EC840               LDX      #SYSFCB   SET TO FCB
+1180 D306 B6CC20               LDA      ERRTYP    GET ERROR
+1181 D309 4A                   DECA               FIND RECORD IN FCB
+1182 D30A 8403                 ANDA     #3        MASK NUMBER
+1183 D30C C63F                 LDB      #63       GET MESSAGE LENGTH
+1184 D30E 3D                   MUL                GET TO DESIRED MESSAGE
+1185 D30F CB04                 ADDB     #4        ADD IN BIAS
+1186 D311 E78822               STB      34,X      SET FDI IN FCB
+1187                 
+1188 D314 BDD406     RPTE85    JSR      FMS       GET CHARACTER
+1189 D317 26C9                 BNE      RPTER4    ERROR?
+1190 D319 BDCF3D               JSR      PUTCHR    OUTPUT CHARACTER
+1191 D31C 810D                 CMPA     #$0D      IS IT CR?
+1192 D31E 26F4                 BNE      RPTE85    REPEAT
+1193                 
+1194 D320 8604                 LDA      #4        CLOSE FILE
+1195 D322 A784                 STA      0,X
+1196 D324 BDD406               JSR      FMS       CALL FMS
+1197 D327 20CD                 BRA      RPTE44    EXIT
+1198                 
+1199 D329 3430       RPTER9    PSHS     X,Y       SAVE REGISTERS
+1200 D32B 7ED0FB               JMP      SETEX4    GO COPY
+1201                 
+1202                 * NONMER
+1203                 *
+1204                 * REPORT NO NAME ERROR
+1205                 
+1206 D32E 8ECC65     NONMER    LDX      #NONMST   POINT TO STRING
+1207 D331 7ECDDB               JMP      NFERR2    REPORT IT
+1208                 
+1209                 * DOCMD
+1210                 *
+1211                 * DO COMMAND LINE
+1212                 
+1213 D334 3506       DOCMD     PULS     A,B       GET RET ADR
+1214 D336 FDCC43               STD      RETADR    SAVE ADDRESS
+1215 D339 10FFCC45             STS      STKSTR    SAVE STACK PNTR
+1216 D33D 7FCC20               CLR      ERRTYP    CLEAR FLAG
+1217 D340 7CCC28               INC      CMFLG     SET MODE
+1218 D343 7ECDB2               JMP      DOS4      GO DO LINE
+1219                 
+1220                 * RETRN
+1221                 *
+1222                 * RETRN RETURNS FROM DOCMD
+1223                 
+1224 D346 7FCC28     RETRN     CLR      CMFLG     CLEAR MODE
+1225 D349 10FECC45             LDS      STKSTR    RESTORE STACK
+1226 D34D F6CC20               LDB      ERRTYP    GET STATUS
+1227 D350 6E9FCC43             JMP      [RETADR]  DO RETURN
+1228                 
+1229                 * ADDBX
+1230                 * ADDS CONTENTS OF B TO X
+1231                 
+1232 D354 3A         ADDBX     ABX
+1233 D355 39                   RTS
+1234                 
+1235                 * MEXIT
+1236                 *
+1237                 * MONITOR EXIT CHECK
+1238                 
+1239 D356 7DCCFC     MEXIT     TST      PR1       CHECK PROCESS 1
+1240 D359 2604                 BNE      MEXIT2
+1241 D35B 6E9FD3F3             JMP      [MONITR]  JUMP TO MONITOR
+1242                 
+1243 D35F 8EC840     MEXIT2    LDX      #SYSFCB   POINT TO FCB
+1244 D362 861B                 LDA      #27
+1245 D364 A701                 STA      1,X       SET ERROR
+1246 D366 BDD28A               JSR      RPTERR    REPORT ERROR
+1247 D369 7ECD67               JMP      ENTRY     GO BACK
+1248                 
+1249 D3FD                      ORG      $D3FD
+1250                 
+1251 D3FD 7EC400     TSTSTR    JMP      LC400
+1252                 
+
+
+Symbol Table:
+
+TSTSTR           D3FD : INDEX            CC3D : DOS2             CD9D : 
+DOS3             CDAB : DOS4             CDB2 : NFERR            CDD3 : 
+DOS6             CDCD : DOS8             CDD0 : DOFMS4           D20E : 
+INCH2            CD0C : DOFMS6           D215 : FILEKO           CC2F : 
+COLCNT           CC04 : DOUTDE           CD39 : DNEXTC           CD27 : 
+MAPUP            CC49 : NFERR1           CDD8 : NFERR2           CDDB : 
+NFERR4           CDDE : XTEMP            CC3B : PR0              CCF8 : 
+DSPR2            CD51 : FMSCLS           D403 : RENTER           CD06 : 
+TSTHE2           D173 : OUTHR            CFDC : TSTHE3           D17F : 
+TSTHE4           D183 : TTYBS            CC00 : TSTHEX           D16D : 
+TTYPS            CC09 : TTYDP            CC03 : GETF35           D073 : 
+OUTHR2           CFE6 : PRTM2            D099 : NOTRST           CC56 : 
+LBL              0080 : TTYESC           CC0A : DSETEX           CD33 : 
+BUFPNT           CC14 : RPTE85           D314 : LOAD2            D1B3 : 
+PCHK             CCD8 : TADR             CC1E : PR1              CCFC : 
+DSPR3            CD54 : DATPNT           CC41 : PRVCHR           CC19 : 
+RESTIO           CDE4 : LC400            C400 : DLOAD            CD30 : 
+CLASS            CFE9 : PRTM3            D0A7 : FMS              D406 : 
+EOT              0004 : STACK            C07F : DINDEC           CD48 : 
+CLASS2           D001 : CLASS4           D007 : LD20B            D20B : 
+LKNAM            CE00 : PRCNT            CC34 : IRQVEC           D3EB : 
+LKNAM3           CE04 : LKNAM4           CE0C : LKNAM6           CE18 : 
+LKNAM8           CE24 : OUTHL            CFD8 : DINBUF           CD1B : 
+TTYTB            CC06 : TEMP             CC4D : OUTADR           CFCC : 
+FMSINT           D400 : FILOUT           CC24 : SYSDAY           CC0F : 
+TTYEJ            CC08 : INDEC            D186 : LINBUF           C080 : 
+CMFLG            CC28 : MONITR           D3F3 : NONMST           CC65 : 
+RSTRIO           CD2A : INDEC2           D189 : SETEX4           D0FB : 
+SETEX5           D104 : SETEX6           D10B : FILIN            CC26 : 
+NUL              0000 : SETEXT           D0E7 : CURFCB           D40B : 
+INIT             CD57 : GETHE2           D140 : PCRLF            CEB1 : 
+LD0AE            D0AE : GETHE4           D14D : GETHE6           D161 : 
+GETHE8           D167 : GETHE9           D16A : DDOCMD           CD4B : 
+LOAD4            D1CE : LINE             CC1A : DFILSP           CD2D : 
+GETHEX           D13D : XFR              CC1D : PCRLF1           CECC : 
+PCRLF2           CEDD : PCRLF4           CEEC : PCRLF6           CEF2 : 
+PCRLF8           CEF4 : PCRLF9           CEF6 : OUTDE4           CF92 : 
+MEMEND           CC2B : OUTDEC           CF82 : INBU65           CE6B : 
+OUTHEX           CFD0 : INBUF            CE2A : SYSYR            CC10 : 
+ERRTYP           CC20 : RPTER1           D2A4 : RPTER2           D2B4 : 
+RPTER4           D2E2 : RPTER6           D2F8 : RPTER7           D300 : 
+RPTER9           D329 : PRTM5            D0C0 : INBUF2           CE30 : 
+INBUF3           CE49 : INBUF4           CE4E : INBUF6           CE55 : 
+INBUF7           CE70 : RPTERR           D28A : OUTNUM           CC4A : 
+SYSDRV           CC0B : GET              D21A : LGO              D239 : 
+DGETHX           CD42 : FILIO            CF1D : CHPR             C700 : 
+ERNM             CCA1 : LGO2             D24B : SPARES           CC35 : 
+FILIO2           CF25 : FILIO4           CF2B : DRPTER           CD3F : 
+FILIO6           CF34 : SPCLS            CC21 : DOUTHE           CD3C : 
+DSKERS           CC6F : NONMER           D32E : SWIVEC           D3E9 : 
+PRMPT            CCAC : SYSFCB           C840 : TSTNAM           D22F : 
+MEXIT            D356 : DPSTRN           CD1E : USRTBL           CC12 : 
+BREAK            CE88 : TTYNL            CC05 : DWARM            DE18 : 
+DADDBX           CD36 : CHAR             CC18 : MEXIT2           D35F : 
+CPUTYP           CC33 : BREAK1           CE98 : BREAK2           CE9B : 
+PDATA1           CE7B : PRTM6            D0C3 : INCH             CD09 : 
+CP               CC31 : COMTBL           CC8C : COLDS            CD00 : 
+RPTE44           D2F6 : PUTC68           CF72 : INCHNE           D3E5 : 
+INCHNL           CC23 : DOUTAD           CD45 : OFFSET           CC1B : 
+NXTCH            D00A : LOAD6            D1E3 : INIT1            CD5B : 
+PINIT            CCC0 : TTYBE            CC07 : NXTCH3           D015 : 
+NXTCH4           D02E : ENTRY            CD67 : RETADR           CC43 : 
+DOCMD            D334 : IOTEMP           CC47 : PRTM             D07C : 
+ENTRY2           CD8B : TMRFLG           CC2A : TTYDEL           CC01 : 
+SYSFLG           CC0D : PSTRNG           CE79 : PPRMPT           CC4E : 
+LSTTRM           CC11 : STKSTR           CC45 : PCRL15           CED3 : 
+PCRL18           CED8 : PCRL19           CEDA : PRTM7            D0C6 : 
+LOAD             D1B0 : SYSMTH           CC0E : DPCRLF           CD24 : 
+CONTBL           CC99 : PUTC75           CF7F : GETCH4           CF11 : 
+GETCH5           CF16 : GETCH6           CF19 : CLROFS           D229 : 
+EXTTBL           D10D : OUTCH            CD0F : RTS              CDFF : 
+DCLASS           CD21 : GETCHR           CEF7 : IHNDLR           D3E7 : 
+GETOP2           D25F : GETOP4           D279 : OUTCH2           CD12 : 
+GETOPN           D253 : OUTCHN           CC22 : POUT             CCE4 : 
+WHATST           CC50 : SKPSP2           D0D6 : SKPSP4           D0E0 : 
+PRMTUSR          CE25 : SKPSPC           D0D0 : DGETCH           CD15 : 
+LD287            D287 : ERRVEC           CC2D : DPUTCH           CD18 : 
+GETFI2           D05B : GETFI3           D070 : GETFI4           D075 : 
+GETFI5           D078 : DSTAT            CD4E : COUNT            CC4B : 
+GETFIL           D032 : GOTFIL           CC4C : RETRN            D346 : 
+PUTCH2           CF4B : OUTDI2           CFA2 : PUTCH4           CF60 : 
+PUTCH6           CF62 : PUTCH7           CF7C : OUTDI5           CFAE : 
+OUTDI6           CFC5 : OUTDI8           CFCA : CRSAVE           CC3F : 
+NTRST            CC7C : OUTDIG           CF9F : FMSBSY           CC30 : 
+PUTCHR           CF3D : WARMS            CD03 : PRTM1            D094 : 
+RETRNR           CC16 : WRKDRV           CC0C : ADDBX            D354 : 
+DOS              CD90 : COLMN            CC29 : DOFMS            D1F2 : 
+TTYEOL           CC02 : 

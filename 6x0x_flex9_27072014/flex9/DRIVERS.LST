@@ -1,0 +1,889 @@
+0001                           NAM      DRIVERS
+0002                           PAG
+0003                 
+0004                 * --------------------------------------------------------
+0005                 * File Name   : DRIVERS.ASM
+0006                 * Format      : XASM09.EXE
+0007                 *
+0008                 * Processor:       6809 []
+0009                 * Target assebler: Public domain 6809 assembler v2.01 (OS9
+0010                 *
+0011                 *       This is a dissassembly of the actual code running 
+0012                 *       6809 box with the SBUG17/OS9 ROM set. This is from
+0013                 *       PL9-MACE boot diskette.
+0014                 *
+0015                 
+0016 CC30            SCRATCH3  equ      $CC30
+0017 CC33            CPUFLAG   equ      $CC33
+0018 CC34            SPLFLG    equ      $CC34     spooling active flag
+0019 CD03            WARMS     equ      $CD03
+0020                 
+0021 CC0E            MONTH     equ      $CC0E
+0022 CC0F            DAY       equ      $CC0F
+0023 CC10            YEAR      equ      $CC10
+0024                 
+0025 D370            HOUR      equ      $D370
+0026 D371            MINUTE    equ      $D371
+0027 D372            SECOND    equ      $D372
+0028 D373            TICK      equ      $D373
+0029                 
+0030 DFC2            SWIVEC    equ      $DFC2
+0031 DFC8            IRQVEC    equ      $DFC8
+0032                 
+0033 DFE0            ACIADD    equ      $DFE0
+0034                 
+0035 E004            ACIAS     equ      $E004
+0036 E042            MPT       equ      $E042
+0037 E070            MPLPIA    equ      $E070
+0038                 
+0039 F80A            OUTCH     equ      $F80A
+0040 F808            INCHEK    equ      $F808
+0041 F806            INCHE     equ      $F806
+0042 F804            INCH      equ      $F804
+0043                 
+0044                 *
+0045                 * CONSOLE I/O DRIVER VECTOR TABLE
+0046                 *
+0047 D3E1                      ORG      $D3E1     * TABLE STARTS AT $D3E1
+0048                 
+0049 D3E1 F087       LD3E1     FDB      ADDDEV    * add an IRQ handler to table
+0050 D3E3 F093                 FDB      DELDEV    * delete an IRQ handler from 
+0051                 
+0052 D3E5 F06F                 FDB      INCHNE    * ($E86F) INPUT CHARACTER W/O
+0053 D3E7 F073                 FDB      IHNDLR    * ($E873) IRQ INTERRUPT HANDL
+0054 D3E9 DFC2                 FDB      SWIVEC    * ($DFC2) SWI3 VECTOR LOCATIO
+0055 D3EB DFC8                 FDB      IRQVEC    * ($DFC8) IRQ VECTOR LOCATION
+0056 D3ED F0D6                 FDB      TMOFF     * ($E8D6) TIMER OFF ROUTINE
+0057 D3EF F0D0                 FDB      TMON      * ($E8D0) TIMER ON ROUTINE
+0058 D3F1 F0B4                 FDB      TMINT     * ($E8B4) TIMER INITIALIZATIO
+0059 D3F3 F044                 FDB      MONITR    * ($E844) MONITOR ENTRY ADDRE
+0060 D3F5 F050                 FDB      TINIT     * ($E850) TERMINAL INITIALIZA
+0061 D3F7 F067                 FDB      STAT      * ($E867) CHECK TERMINAL STAT
+0062 D3F9 F063                 FDB      VOUTCH    * ($E863) OUTPUT CHARACTER
+0063 D3FB F05A                 FDB      VINCH     * ($E85A) INPUT CHARACTER W/ 
+0064                 
+0065                 *
+0066                 * DISK DRIVER ROUTINE JUMP TABLE
+0067                 *
+0068 DE00                      ORG      $DE00
+0069                 
+0070 DE00 7EF155     DREAD     JMP      >READ     * DE00 7E E955   READ      Re
+0071 DE03 7EF1B9     DWRITE    JMP      >WRITE    * DE03 7E E9B9   WRITE     Wr
+0072 DE06 7EF221     DVERFY    JMP      >VERIFY   * DE06 7E EA21   VERIFY    Ve
+0073 DE09 7EF2E8     DRESTOR   JMP      >RESTORE  * DE09 7E EAE8   RESTORE   Re
+0074 DE0C 7EF300     DDRIVE    JMP      >DRIVE    * DE0C 7E EB00   DRIVE     Se
+0075 DE0F 7EF342     DCHECK    JMP      >CHKRDY   * DE0F 7E EB42   CHKRDY    Ch
+0076 DE12 7EF382     DQUICK    JMP      >QUICK    * DE12 7E EB82   QUICK     Qu
+0077 DE15 7EF2D2     DINIT     JMP      >INIT     * DE15 7E EAD2   INIT      Dr
+0078 DE18 7EF2DD     DWARM     JMP      >WARM     * DE18 7E EADD   WARM      Dr
+0079 DE1B 7EF236     DSEEK     JMP      >SEEKIT   * DE1B 7E EA36   SEEK      Se
+0080                 
+0081 DE1E 00         DRVTBL    FCB      $00
+0082 DE1F 00                   FCB      $00
+0083 DE20 00                   FCB      $00
+0084 DE21 00                   FCB      $00
+0085                 
+0086 DE22 00000000             FCB      $00,$00,$00,$00
+0087 DE26 00000000             FCB      $00,$00,$00,$00
+0088                 
+0089 F000                      org      $F000
+0090                 
+0091                 * --------------------------------------------------------
+0092                 *       Printer port initialization
+0093                 
+0094 F000 AE8C3C     OPNPRT    ldx      <PPORT,pc
+0095 F003 863A                 lda      #$3A
+0096 F005 A701                 sta      1,x
+0097 F007 86FF                 lda      #$FF
+0098 F009 A784                 sta      ,x
+0099 F00B 863E                 lda      #$3E
+0100 F00D A701                 sta      1,x
+0101 F00F 39                   rts
+0102                 
+0103                 * --------------------------------------------------------
+0104                 *       Close the printer device (issue a <CR>)
+0105                 
+0106 F010 860D       CLSPRT    lda      #$D
+0107                 
+0108                 * --------------------------------------------------------
+0109                 *       Output a character to the printer
+0110                 
+0111 F012 8D16       OUTPRT    bsr      CHKPRT
+0112 F014 2AFC                 bpl      OUTPRT
+0113                 
+0114 F016 3410                 pshs     x
+0115 F018 6F8C28               clr      <IRQBM,pc
+0116 F01B AE8C21               ldx      <PPORT,pc
+0117 F01E A784                 sta      ,x
+0118 F020 8636                 lda      #$36
+0119 F022 A701                 sta      1,x
+0120 F024 863E                 lda      #$3E
+0121 F026 A701                 sta      1,x
+0122 F028 3590                 puls     pc,x
+0123                 
+0124                 * --------------------------------------------------------
+0125                 *       check for printer ready
+0126                 
+0127 F02A 3410       CHKPRT    pshs     x
+0128 F02C 6D8C14               tst      <IRQBM,pc
+0129 F02F 2B0C                 bmi      CHKDONE
+0130                 
+0131 F031 AE8C0B               ldx      <PPORT,pc
+0132 F034 6D01                 tst      1,x
+0133 F036 2A05                 bpl      CHKDONE
+0134                 
+0135 F038 6D84                 tst      ,x
+0136 F03A 638C06               com      <IRQBM,pc
+0137                 
+0138 F03D 3590       CHKDONE   puls     pc,x
+0139                 
+0140                 * --------------------------------------------------------
+0141                 
+0142 F03F E070       PPORT     fdb      MPLPIA    * address of device
+0143 F041 0000                 fdb      0         * IRQ handler address
+0144 F043 00         IRQBM     fcb      0         * bit mask for IRQ flag
+0145                 
+0146                 * --------------------------------------------------------
+0147                 *       Monitor entry routine
+0148                 
+0149 F044 860A       MONITR    lda      #$A
+0150 F046 8D1B                 bsr      VOUTCH    * output character
+0151 F048 860D                 lda      #$D
+0152 F04A 8D17                 bsr      VOUTCH    * output character
+0153 F04C 3F                   swi                * enter monitor
+0154 F04D 7ECD03               jmp      WARMS     * re-enter FLEX gracefully
+0155                 
+0156                 * --------------------------------------------------------
+0157                 *       Terminal init routine
+0158                 
+0159 F050 3402       TINIT     pshs     a
+0160 F052 8611                 lda      #$11
+0161 F054 A79FDFE0             sta      [ACIADD]
+0162 F058 3582                 puls     pc,a
+0163                 
+0164                 * --------------------------------------------------------
+0165                 *       Terminal input routine
+0166                 
+0167 F05A 7DF0B2     VINCH     tst      >TAPPTR   * allow redirection of input 
+0168 F05D 270C                 beq      TREDIR    * redirection not required
+0169 F05F AD9FF0B2             jsr      [TAPPTR]  * redirect to alternate routi
+0170                 
+0171                 * --------------------------------------------------------
+0172                 *       Terminal output routine
+0173                 
+0174 F063 6E9FF80A   VOUTCH    jmp      [OUTCH]
+0175                 
+0176                 * --------------------------------------------------------
+0177                 *       Terminal status check routine
+0178                 
+0179 F067 6E9FF808   STAT      jmp      [INCHEK]
+0180                 
+0181                 * --------------------------------------------------------
+0182                 *       Monitor terminal input character with echo
+0183                 
+0184 F06B 6E9FF806   TREDIR    jmp      [INCHE]
+0185                 
+0186                 * --------------------------------------------------------
+0187                 *       Monitor terminal input character without echo
+0188                 
+0189 F06F 6E9FF804   INCHNE    jmp      [INCH]
+0190                 
+0191                 * --------------------------------------------------------
+0192                 * Interupt handler
+0193                 
+0194 F073 338C35     IHNDLR    leau     <IRQLL-4,pc get address of IRQ handler 
+0195 F076 EE44       CHKNXT    ldu      4,u       get a link
+0196 F078 270C                 beq      IHDONE    end of list
+0197                 
+0198 F07A A6D4                 lda      [,u]      get status from device
+0199 F07C A546                 bita     6,u       did it interrupt?
+0200 F07E 27F6                 beq      CHKNXT    no - check next
+0201                 
+0202 F080 10AEC4               ldy      ,u        yes - get address of device i
+0203 F083 6ED802               jmp      [2,u]     go to device ISR
+0204                 
+0205 F086 3B         IHDONE    rti                return from interrupt
+0206                 
+0207                 * --------------------------------------------------------
+0208                 *       add a device to IRQ handler table
+0209                 
+0210 F087 3470       ADDDEV    pshs     x,y,u
+0211 F089 8D14                 bsr      SRCHLST   find link in chain
+0212 F08B 2704                 beq      DEVARE    already exists - exit
+0213 F08D EF04                 stu      4,x       set link pointer in new ctl b
+0214 F08F AF24                 stx      4,y       link this one into prev blk
+0215 F091 35F0       DEVARE    puls     pc,u,y,x
+0216                 
+0217                 * --------------------------------------------------------
+0218                 *       delete a device from IRQ handler table
+0219                 
+0220 F093 3470       DELDEV    pshs     x,y,u
+0221 F095 8D08                 bsr      SRCHLST   find link in chain
+0222 F097 2604                 bne      NODEV     not found - exit
+0223 F099 AE04                 ldx      4,x       get link from ctl blk to dele
+0224 F09B AF44                 stx      4,u       set in prev block
+0225 F09D 35F0       NODEV     puls     pc,u,y,x
+0226                 
+0227                 * --------------------------------------------------------
+0228                 *       search a linked list
+0229                 *
+0230                 *               entry: X = address of ISR control block
+0231                 *               exit:  Y = address of link pointer
+0232                 *                     CC = Z bit set if already linked
+0233                 *
+0234                 *               format of ISR control block:
+0235                 *
+0236                 *                       offset  description
+0237                 *                         0     address of I/O device
+0238                 *                         2     address of ISR
+0239                 *                         4     link to next ISR control b
+0240                 *                         6     bit mask for determining I
+0241                 
+0242 F09F 338C09     SRCHLST   leau     <IRQLL-4,pc
+0243 F0A2 31C4       SRCHLP    leay     ,u
+0244 F0A4 AC44                 cmpx     4,u       X = link?
+0245 F0A6 2706                 beq      FNDENT    yes - return pointer in U
+0246                 
+0247 F0A8 EE44                 ldu      4,u       no - get link in U
+0248 F0AA 26F6                 bne      SRCHLP    not end of chain - loop
+0249 F0AC 1CFB                 andcc    #$FB      clear Z flag in CC
+0250                 
+0251 F0AE 39         FNDENT    rts                return - not found
+0252                 
+0253                 * --------------------------------------------------------
+0254                 
+0255 F0AF 0000       IRQLL     fdb      0         pointer to first entry in the
+0256 F0B1 01                   fcb      1
+0257                 
+0258 F0B2 0000       TAPPTR    fdb      0         no terminal input redirection
+0259                 
+0260                 * --------------------------------------------------------
+0261                 *       Timer routines for MPT
+0262                 *
+0263                 *       timer initialize - install the handler into the ch
+0264                 
+0265 F0B4 8EE042     TMINT     ldx      #MPT      point to hardware
+0266 F0B7 86FF                 lda      #$FF      set up the port direction
+0267 F0B9 A784                 sta      ,x
+0268 F0BB 863C                 lda      #$3C
+0269 F0BD A701                 sta      1,x
+0270 F0BF 868F                 lda      #$8F      this turns it off so it does
+0271 F0C1 A784                 sta      ,x        not fire before the handler
+0272 F0C3 A684                 lda      ,x        get's installed
+0273 F0C5 863D                 lda      #$3D
+0274 F0C7 A701                 sta      1,x
+0275                 
+0276                 *               point X at address of timer handler contro
+0277                 
+0278 F0C9 8EF14E               ldx      #TIMER
+0279 F0CC 6E9FD3E1             jmp      [LD3E1]   Add it to the linked list of 
+0280                 
+0281                 * --------------------------------------------------------
+0282                 *       timer on
+0283                 
+0284 F0D0 8604       TMON      lda      #4        10 millisecond ticks
+0285 F0D2 B7E042               sta      MPT       enable the timer
+0286 F0D5 39                   rts
+0287                 
+0288                 * --------------------------------------------------------
+0289                 *       timer off
+0290                 
+0291 F0D6 868F       TMOFF     lda      #$8F      disable the timer
+0292 F0D8 B7E042               sta      MPT
+0293 F0DB 39                   rts
+0294                 * --------------------------------------------------------
+0295                 *
+0296                 *   Interrupt handler for the MP-T card.
+0297 F0DC             
+0298 F0DC B6E042     IHND      lda      MPT       kill IRQ flag in MPT
+0299 F0DF 7CD373               inc      TICK      bump tick counter
+0300 F0E2 B6D373               lda      TICK
+0301 F0E5 8164                 cmpa     #100      100 ticks?
+0302 F0E7 2656                 bne      NOUP      no - skip to spooler
+0303                 
+0304 F0E9 7FD373               clr      TICK      yes - reset tick counter
+0305 F0EC 7CD372               inc      SECOND    - increment second counter
+0306 F0EF B6D372               lda      SECOND    see if overflow
+0307 F0F2 813C                 cmpa     #60
+0308 F0F4 2649                 bne      NOUP      no - don't update minutes
+0309                 
+0310 F0F6 7FD372               clr      SECOND    yes - reset seconds
+0311 F0F9 7CD371               inc      MINUTE    increment minute
+0312 F0FC B6D371               lda      MINUTE
+0313 F0FF 813C                 cmpa     #60       see if overflow
+0314 F101 263C                 bne      NOUP      no - don't update hour
+0315                 
+0316 F103 7FD371               clr      MINUTE    yes - reset minute
+0317 F106 7CD370               inc      HOUR      increment hours
+0318 F109 B6D370               lda      HOUR
+0319 F10C 8118                 cmpa     #24       overflow?
+0320 F10E 262F                 bne      NOUP      no - don't update day
+0321                 
+0322 F110 7FD370               clr      HOUR      yes - reset hours
+0323 F113 7CCC0F               inc      DAY       increment system day
+0324 F116 B6CC0F               lda      DAY       get the day
+0325 F119 308D0025             leax     MONTHDAYS,pc point to days per month ta
+0326 F11D F6CC0E               ldb      MONTH     get month in b for offset
+0327 F120 5A                   decb               make zero based
+0328 F121 3085                 leax     b,x       set X to point to correct ent
+0329 F123 4C                   inca
+0330 F124 A184                 cmpa     ,x
+0331 F126 2617                 bne      NOUP      not time to change month yet
+0332                 
+0333 F128 8601                 lda      #1        reset the day to the first
+0334 F12A B7CC0F               sta      DAY
+0335 F12D 7CCC0E               inc      MONTH     bump the month
+0336 F130 B6CC0E               lda      MONTH     get the month value
+0337 F133 810D                 cmpa     #13       see if overflow
+0338 F135 2608                 bne      NOUP      no
+0339                 
+0340 F137 8601                 lda      #1        set back to January
+0341 F139 B7CC0E               sta      MONTH
+0342 F13C 7CCC10               inc      YEAR      and bump to next year
+0343                 
+0344 F13F 7EC700     NOUP      jmp      $C700     go to spooler code
+0345                 
+0346 F142 1F         MONTHDAY  fcb      31        Jan
+0347 F143 1C                   fcb      28        Feb
+0348 F144 1F                   fcb      31        Mar
+0349 F145 1E                   fcb      30        Apr
+0350 F146 1F                   fcb      31        May
+0351 F147 1E                   fcb      30        Jun
+0352 F148 1F                   fcb      31        Jul
+0353 F149 1F                   fcb      31        Aug
+0354 F14A 1E                   fcb      30        Sep
+0355 F14B 1F                   fcb      31        Oct
+0356 F14C 1E                   fcb      30        Nov
+0357 F14D 1F                   fcb      31        Dec
+0358                 
+0359 F14E E043       TIMER     fdb      MPT+1     * where we can find device st
+0360 F150 F0DC                 fdb      IHND      * pointer to Interrupt handle
+0361 F152 0000                 fdb      0         * pointer to next device in c
+0362 F154 80                   fcb      $80       * mask for testing Interrupt 
+0363                 
+0364                 *   READ    This routine reads the specified sector into m
+0365                 *           specified address. This routine should perform
+0366                 *           operation if necessary. A sector is 256 bytes 
+0367                 *
+0368                 *           ENTRY - (X) = Address in memory where sector i
+0369                 *                   (A) = Track Number
+0370                 *                   (B) = Sector Number
+0371                 *
+0372                 *           EXIT -  (X) May be destroyed
+0373                 *                   (A) May be destroyed
+0374                 *                   (B) = Error condition
+0375                 *                   (Z) = 1 if no error
+0376                 *                       = 0 if an error
+0377                 
+0378 F155 1700F3     READ      lbsr     SEEK
+0379 F158 8688                 lda      #$88      read sector command
+0380 F15A BADE1E               ora      DRVTBL
+0381 F15D BADE20               ora      DRVTBL+2
+0382 F160 7FDE20               clr      DRVTBL+2
+0383 F163 7DCC34               tst      SPLFLG    spooling active?
+0384 F166 2702                 beq      LE96A     no - proceed
+0385                 
+0386 F168 113F                 swi3               give spooler opportunity to r
+0387                 
+0388 F16A 12         LE96A     nop
+0389 F16B 1A50                 orcc     #$50      disable FIRQ and IRQ
+0390 F16D B7E018               sta      $E018     issue command
+0391 F170 170245               lbsr     SEBB8     wait for WD2793 to accept com
+0392 F173 5F                   clrb               set byte counter
+0393 F174 7DDE1E               tst      DRVTBL    see if single or double densi
+0394 F177 2721                 beq      LE99A     single
+0395                 
+0396                 *               do double density read
+0397                 
+0398 F179 3460                 pshs     y,u
+0399 F17B CEE01B               ldu      #$E01B
+0400 F17E 108EE014             ldy      #$E014
+0401                 
+0402 F182 A6A4       LE982     lda      ,y
+0403 F184 2B04                 bmi      LE98A
+0404 F186 27FA                 beq      LE982
+0405 F188 2007                 bra      LE991
+0406                 
+0407 F18A A6C4       LE98A     lda      ,u
+0408 F18C A780                 sta      ,x+
+0409 F18E 5A                   decb
+0410 F18F 26F1                 bne      LE982
+0411                 
+0412 F191 17012B     LE991     lbsr     SEABF
+0413 F194 1CAF                 andcc    #$AF
+0414 F196 C59C                 bitb     #$9C
+0415 F198 35E0                 puls     pc,u,y
+0416                 
+0417                 *               do single density read
+0418                 
+0419 F19A B6E018     LE99A     lda      $E018
+0420 F19D 2B12                 bmi      LE9B1
+0421 F19F 8502                 bita     #2
+0422 F1A1 2606                 bne      LE9A9
+0423 F1A3 8501                 bita     #1
+0424 F1A5 26F3                 bne      LE99A
+0425 F1A7 2008                 bra      LE9B1
+0426                 
+0427 F1A9 B6E01B     LE9A9     lda      $E01B
+0428 F1AC A780                 sta      ,x+
+0429 F1AE 5A                   decb
+0430 F1AF 26E9                 bne      LE99A
+0431                 
+0432 F1B1 17010B     LE9B1     lbsr     SEABF
+0433 F1B4 1CAF                 andcc    #$AF
+0434 F1B6 C59C                 bitb     #$9C
+0435 F1B8 39                   rts
+0436                 
+0437                 *   WRITE   This routine writes the information from the s
+0438                 *           buffer area to the disk sector specified. This
+0439                 *           perform a seek operation if necessary. A secto
+0440                 *           in length.
+0441                 *
+0442                 *           ENTRY - (X) = Address of 256 memory buffer con
+0443                 *                         to be written to disk
+0444                 *                   (A) = Track Number
+0445                 *                   (B) = Sector Number
+0446                 *
+0447                 *           EXIT -  (X) May be destroyed
+0448                 *                   (A) May be destroyed
+0449                 *                   (B) = Error condition
+0450                 *                   (Z) = 1 if no error
+0451                 *                       = 0 if an error
+0452                 
+0453 F1B9 17008F     WRITE     lbsr     SEEK
+0454 F1BC 86A8                 lda      #$A8      write sector command
+0455 F1BE BADE1E               ora      DRVTBL    pick up density bit
+0456 F1C1 BADE20               ora      DRVTBL+2
+0457 F1C4 7FDE20               clr      DRVTBL+2
+0458 F1C7 7DCC34               tst      SPLFLG    spooling active?
+0459 F1CA 2702                 beq      LE9CE     no - proceed
+0460                 
+0461 F1CC 113F                 swi3               give spooler a slice of time
+0462                 
+0463 F1CE 12         LE9CE     nop
+0464 F1CF 1A50                 orcc     #$50      disable FIRQ and IRQ
+0465 F1D1 B7E018               sta      $E018     issue command
+0466 F1D4 1701E1               lbsr     SEBB8     wait for WD2793 to accept com
+0467 F1D7 5F                   clrb               set byte counter
+0468 F1D8 7DDE1E               tst      DRVTBL    single or double density
+0469 F1DB 271F                 beq      LE9FC     single
+0470                 
+0471                 *               do double density write
+0472                 
+0473 F1DD 3460                 pshs     y,u
+0474 F1DF CEE01B               ldu      #$E01B
+0475 F1E2 108EE014             ldy      #$E014
+0476                 
+0477 F1E6 A6A4       LE9E6     lda      ,y
+0478 F1E8 2B04                 bmi      LE9EE
+0479 F1EA 27FA                 beq      LE9E6
+0480 F1EC 2007                 bra      LE9F5
+0481                 
+0482 F1EE A680       LE9EE     lda      ,x+
+0483 F1F0 A7C4                 sta      ,u
+0484 F1F2 5A                   decb
+0485 F1F3 26F1                 bne      LE9E6
+0486                 
+0487 F1F5 1700C7     LE9F5     lbsr     SEABF
+0488 F1F8 8D1C                 bsr      SEA16
+0489 F1FA 35E0                 puls     pc,u,y
+0490                 
+0491                 *               do single density write
+0492                 
+0493 F1FC B6E018     LE9FC     lda      $E018
+0494 F1FF 2B12                 bmi      LEA13
+0495 F201 8502                 bita     #2
+0496 F203 2606                 bne      LEA0B
+0497 F205 8501                 bita     #1
+0498 F207 26F3                 bne      LE9FC
+0499 F209 2008                 bra      LEA13
+0500                 
+0501 F20B A680       LEA0B     lda      ,x+
+0502 F20D B7E01B               sta      $E01B
+0503 F210 5A                   decb
+0504 F211 26E9                 bne      LE9FC
+0505                 
+0506 F213 1700A9     LEA13     lbsr     SEABF
+0507                 
+0508 F216 4F         SEA16     clra
+0509 F217 4A         LEA17     deca
+0510 F218 1026FFFB             lbne     LEA17
+0511 F21C 1CAF                 andcc    #$AF
+0512 F21E C5DC                 bitb     #$DC
+0513 F220 39                   rts
+0514                 
+0515                 *   VERIFY  The sector just written to the disk is to be v
+0516                 *           determine if there are CRC errors. No seek is 
+0517                 *           this routine will only be called immediately a
+0518                 *           single sector operation.
+0519                 *
+0520                 *           ENTRY - No entry parameters
+0521                 *
+0522                 *           EXIT -  (X) May be destroyed
+0523                 *                   (A) May be destroyed
+0524                 *                   (B) = Error condition
+0525                 *                   (Z) = 1 if no error
+0526                 *                       = 0 if an error
+0527                 
+0528 F221 8688       VERIFY    lda      #$88      read sector command
+0529 F223 BADE1E               ora      DRVTBL    get density bit
+0530 F226 1A50                 orcc     #$50      disable FIRQ and IRQ
+0531 F228 B7E018               sta      $E018     issue command
+0532 F22B 17018A               lbsr     SEBB8     wait for WD2793 to get it
+0533 F22E 17008E               lbsr     SEABF
+0534 F231 1CAF                 andcc    #$AF
+0535 F233 C598                 bitb     #$98
+0536 F235 39                   rts
+0537                 
+0538                 *   SEEK    Seeks to the track specified in the 'A' accumu
+0539                 *           double-sided systems, this routine should also
+0540                 *           correct side depending on the sector number su
+0541                 *
+0542                 *           ENTRY - (A) = Track Number
+0543                 *                   (B) = Sector Number
+0544                 *
+0545                 *           EXIT -  (X) May be destroyed (See text)
+0546                 *                   (A) May be destroyed (See text)
+0547                 *                   (B) = Error condition
+0548                 *                   (Z) = 1 if no error
+0549                 *                       = 0 if an error
+0550                 
+0551 F236 10830000   SEEKIT    cmpd     #0        are we going to track 0 secto
+0552 F23A 260F                 bne      SEEK      no =
+0553                 
+0554 F23C 8EDE22               ldx      #DRVTBL+4
+0555 F23F F6DE21               ldb      DRVTBL+3
+0556 F242 6F85                 clr      b,x
+0557 F244 B6E019               lda      $E019
+0558 F247 8EE010               ldx      #$E010
+0559 F24A 39                   rts
+0560                 
+0561 F24B 3412       SEEK      pshs     a,x
+0562 F24D F7E01A               stb      $E01A
+0563 F250 8D41                 bsr      SEA93
+0564 F252 FADE21               orb      DRVTBL+3
+0565 F255 F7E014               stb      $E014
+0566 F258 B1E019               cmpa     $E019
+0567 F25B 2731                 beq      LEA8E
+0568 F25D F6DE21               ldb      DRVTBL+3
+0569 F260 8EDE22               ldx      #DRVTBL+4
+0570 F263 E685                 ldb      b,x
+0571 F265 C402                 andb     #2
+0572 F267 F7DE1F               stb      DRVTBL+1
+0573 F26A 2704                 beq      LEA70
+0574 F26C 78E019               asl      $E019
+0575 F26F 48                   asla
+0576                 
+0577 F270 B7E01B     LEA70     sta      $E01B
+0578 F273 8604                 lda      #4
+0579 F275 B7DE20               sta      DRVTBL+2
+0580 F278 8618                 lda      #$18
+0581 F27A B7E018               sta      $E018
+0582 F27D 170138               lbsr     SEBB8
+0583 F280 170125               lbsr     SEBA8
+0584 F283 170132               lbsr     SEBB8
+0585 F286 7DDE1F               tst      DRVTBL+1
+0586 F289 2706                 beq      LEA91
+0587 F28B 74E019               lsr      $E019
+0588                 
+0589 F28E 170127     LEA8E     lbsr     SEBB8
+0590 F291 3592       LEA91     puls     pc,x,a
+0591                 
+0592 F293 8D10       SEA93     bsr      SEAA5
+0593 F295 2707                 beq      LEA9E
+0594 F297 C112                 cmpb     #$12
+0595 F299 2307                 bls      LEAA2
+0596                 
+0597 F29B C640       LEA9B     ldb      #$40
+0598 F29D 39                   rts
+0599                 
+0600 F29E C10A       LEA9E     cmpb     #$A
+0601 F2A0 22F9                 bhi      LEA9B
+0602                 
+0603 F2A2 C600       LEAA2     ldb      #0
+0604 F2A4 39                   rts
+0605                 
+0606 F2A5 2114       SEAA5     brn      LEABB
+0607 F2A7 A7E2                 sta      ,-s
+0608 F2A9 2708                 beq      LEAB3
+0609 F2AB B6DE21               lda      DRVTBL+3
+0610 F2AE 8EDE22               ldx      #DRVTBL+4
+0611 F2B1 A686                 lda      a,x
+0612                 
+0613 F2B3 8401       LEAB3     anda     #1
+0614 F2B5 48                   asla
+0615 F2B6 B7DE1E               sta      DRVTBL
+0616 F2B9 3582                 puls     pc,a
+0617                 
+0618 F2BB 7FDE1E     LEABB     clr      DRVTBL
+0619 F2BE 39                   rts
+0620                 
+0621 F2BF 1700E6     SEABF     lbsr     SEBA8
+0622 F2C2 3414                 pshs     b,x
+0623 F2C4 C510                 bitb     #$10
+0624 F2C6 2708                 beq      LEAD0
+0625 F2C8 F6DE21               ldb      DRVTBL+3
+0626 F2CB 8EDE22               ldx      #DRVTBL+4
+0627 F2CE 6C85                 inc      b,x
+0628 F2D0 3594       LEAD0     puls     pc,x,b
+0629                 
+0630                 *   INIT    This routine performs any necessary initializa
+0631                 *           drivers during cold start (at boot time). Actu
+0632                 *           operation which must be done when the system i
+0633                 *           can be done here.
+0634                 *
+0635                 *           ENTRY - No parameters
+0636                 *
+0637                 *           EXIT - A, B, X, Y, and U may be destroyed
+0638                 
+0639 F2D2 8EDE1E     INIT      ldx      #DRVTBL
+0640 F2D5 C60C                 ldb      #12
+0641                 
+0642 F2D7 6F80       INIT2     clr      ,x+
+0643 F2D9 5A                   decb
+0644 F2DA 26FB                 bne      INIT2
+0645 F2DC 39                   rts
+0646                 
+0647                 *   WARM    Performs any necessary functions during FLEX w
+0648                 *           calls this routine each time it goes thru the 
+0649                 *           procedure (after every command). As an example
+0650                 *           controllers use PIA's for communication with t
+0651                 *           If FLEX is exited with a CPU reset, these PIA'
+0652                 *           reset such that the controller would not funct
+0653                 *           upon a jump to the FLEX warm start entry point
+0654                 *           could re-initialize the PIA when the warm star
+0655                 *
+0656                 *           ENTRY - No parameters
+0657                 *
+0658                 *           EXIT - A, B, X, Y, and U may be destroyed
+0659                 
+0660 F2DD 7DCC30     WARM      tst      SCRATCH3
+0661 F2E0 2605                 bne      LREAE7
+0662 F2E2 8680                 lda      #$80
+0663 F2E4 B7E014               sta      $E014
+0664                 
+0665 F2E7 39         LREAE7    rts
+0666                 
+0667                 *   RESTORE A restore operation (also known as a "seek to 
+0668                 *           be performed on the specified drive. The drive
+0669                 *           in the FCB pointed to by the contents of the X
+0670                 *           that the drive number is the 4th byte of the F
+0671                 *           routine should select the drive before executi
+0672                 *           operation.
+0673                 *
+0674                 *           ENTRY - (X) = FCB address (3,X contains drive 
+0675                 *
+0676                 *           EXIT -  (X) May be destroyed
+0677                 *                   (A) May be destroyed
+0678                 *                   (B) = Error condition
+0679                 *                   (Z) = 1 if no error
+0680                 *                       = 0 if an error
+0681                 
+0682 F2E8 8D16       RESTORE   bsr      DRIVE
+0683 F2EA 2513                 bcs      LREAFF
+0684 F2EC 860A                 lda      #$A       restore heads command
+0685 F2EE B7E018               sta      $E018
+0686 F2F1 1700C4               lbsr     SEBB8
+0687 F2F4 1700B1               lbsr     SEBA8
+0688 F2F7 1CFE                 andcc    #$FE
+0689 F2F9 C540                 bitb     #$40
+0690 F2FB 2702                 beq      LREAFF
+0691 F2FD C60B                 ldb      #$B
+0692                 
+0693 F2FF 39         LREAFF    rts
+0694                 
+0695                 *   DRIVE   The specified drive is to be selected. The dri
+0696                 *           in the FCB pointed to by the contents of the X
+0697                 *           that the drive number is the 4th byte of the F
+0698                 *
+0699                 *           ENTRY - (X) = FCB address (3,X contains drive 
+0700                 *
+0701                 *           EXIT -  (X) May be destroyed
+0702                 *                   (A) May be destroyed
+0703                 *                   (B) = $0F if non-existent drive
+0704                 *                       = Error condition otherwise
+0705                 *                   (Z) = 1 if no error
+0706                 *                       = 0 if an error
+0707                 *                   (C) = 0 if no error
+0708                 *                       = 1 if an error
+0709                 
+0710 F300 3410       DRIVE     pshs     x
+0711 F302 A603                 lda      3,x
+0712 F304 8104                 cmpa     #4
+0713 F306 2505                 bcs      LEB0D
+0714 F308 C61F                 ldb      #$1F
+0715 F30A 57                   asrb
+0716 F30B 3590                 puls     pc,x
+0717                 
+0718 F30D 8D2B       LEB0D     bsr      SEB3A
+0719 F30F F6E019               ldb      $E019
+0720 F312 E784                 stb      ,x
+0721 F314 B7E014               sta      $E014
+0722 F317 B1DE21               cmpa     DRVTBL+3
+0723 F31A 2712                 beq      LEB2E
+0724 F31C 8E0C14               ldx      #$C14
+0725 F31F 7DCC33               tst      CPUFLAG   see if 1 or 2 MHZ
+0726 F322 2A03                 bpl      LEB27     2MHZ
+0727                 
+0728 F324 8E17EA               ldx      #$17EA    1MHZ
+0729                 
+0730 F327 17008E     LEB27     lbsr     SEBB8
+0731 F32A 301F                 leax     -1,x
+0732 F32C 26F9                 bne      LEB27
+0733                 
+0734 F32E B7DE21     LEB2E     sta      DRVTBL+3
+0735 F331 8D07                 bsr      SEB3A
+0736 F333 A684                 lda      ,x
+0737 F335 B7E019               sta      $E019
+0738 F338 200F                 bra      LEB49
+0739                 
+0740 F33A 8EDE26     SEB3A     ldx      #DRVTBL+8
+0741 F33D F6DE21               ldb      DRVTBL+3
+0742 F340 3A                   abx
+0743 F341 39                   rts
+0744                 
+0745                 *   CHKRDY  Check for a drive ready condition. The drive n
+0746                 *           in the specified FCB (at 3,X). If the user's c
+0747                 *           the drive motors off after some time delay, th
+0748                 *           should first check for a drive ready condition
+0749                 *           not ready, should delay long enough for the mo
+0750                 *           to speed, then check again. This delay should 
+0751                 *           not ready on the first try and ONLY if necessa
+0752                 *           particular drives and controller! If the hardw
+0753                 *           leaves the drive motors on, this routine shoul
+0754                 *           single check for drive ready and immediately r
+0755                 *           resulting status. Systems which do not have th
+0756                 *           check for a drive ready condition should simpl
+0757                 *           a ready status if the drive number is valid.
+0758                 *
+0759                 *           ENTRY - (X) = FCB address (3,X contains drive 
+0760                 *
+0761                 *           EXIT -  (X) May be destroyed
+0762                 *                   (A) May be destroyed
+0763                 *                   (B) = Error condition
+0764                 *                   (Z) = 1 if drive ready
+0765                 *                       = 0 if not ready
+0766                 *                   (C) = 0 if drive ready
+0767                 *                       = 1 if not ready
+0768                 
+0769 F342 3410       CHKRDY    pshs     x
+0770 F344 A603                 lda      3,x
+0771 F346 B7E014               sta      $E014
+0772                 
+0773 F349 2110       LEB49     brn      LEB5B
+0774 F34B 8E49B3               ldx      #$49B3
+0775 F34E 7DCC33               tst      CPUFLAG
+0776 F351 2A03                 bpl      LEB56
+0777 F353 8E9367               ldx      #$9367
+0778                 
+0779 F356 F6E018     LEB56     ldb      $E018
+0780 F359 2B03                 bmi      LEB5E
+0781                 
+0782 F35B 4F         LEB5B     clra
+0783 F35C 3590                 puls     pc,x
+0784                 
+0785 F35E 170057     LEB5E     lbsr     SEBB8
+0786 F361 F6E018               ldb      $E018
+0787 F364 2A07                 bpl      LEB6D
+0788 F366 301F                 leax     -1,x
+0789 F368 26F4                 bne      LEB5E
+0790                 
+0791 F36A 53         LEB6A     comb
+0792 F36B 3590                 puls     pc,x
+0793                 
+0794 F36D 8E1576     LEB6D     ldx      #$1576
+0795 F370 7DCC33               tst      CPUFLAG
+0796 F373 2A03                 bpl      LEB78
+0797 F375 8E27DC               ldx      #$27DC
+0798                 
+0799 F378 17003D     LEB78     lbsr     SEBB8
+0800 F37B 301F                 leax     -1,x
+0801 F37D 26F9                 bne      LEB78
+0802 F37F 4F                   clra
+0803 F380 3590                 puls     pc,x
+0804                 
+0805                 *   QUICK   This routine performs a "quick" drive ready ch
+0806                 *           function is exactly like the CHKRDY routine ab
+0807                 *           no delay should be done. If the drive does not
+0808                 *           condition on the first check, a not ready cond
+0809                 *           immediately returned. Entry and exit are as ab
+0810                 
+0811 F382 3410       QUICK     pshs     x
+0812 F384 A603                 lda      3,x
+0813 F386 B7E014               sta      $E014
+0814 F389 21D0                 brn      LEB5B
+0815 F38B 8E0B0E               ldx      #$B0E
+0816 F38E 7DCC33               tst      CPUFLAG
+0817 F391 2A03                 bpl      LEB96
+0818 F393 8E161C               ldx      #$161C
+0819                 
+0820 F396 7DE018     LEB96     tst      $E018
+0821 F399 17001C               lbsr     SEBB8
+0822 F39C 301F                 leax     -1,x
+0823 F39E 26F6                 bne      LEB96
+0824 F3A0 F6E018               ldb      $E018
+0825 F3A3 2BC5                 bmi      LEB6A
+0826 F3A5 4F                   clra
+0827 F3A6 3590                 puls     pc,x
+0828                 
+0829 F3A8 7DCC34     SEBA8     tst      SPLFLG
+0830 F3AB 2702                 beq      LEBAF
+0831 F3AD 113F                 swi3
+0832                 
+0833 F3AF 12         LEBAF     nop
+0834 F3B0 F6E018               ldb      $E018
+0835 F3B3 C501                 bitb     #1
+0836 F3B5 26F1                 bne      SEBA8
+0837 F3B7 39                   rts
+0838                 
+0839 F3B8 8D00       SEBB8     bsr      *+2
+0840 F3BA 8D00                 bsr      *+2
+0841 F3BC 8D00                 bsr      *+2
+0842 F3BE 39                   rts
+0843                 
+0844 C850                      END      $C850
+
+
+Symbol Table:
+
+LEA91            F291 : LE9A9            F1A9 : QUICK            F382 : 
+IHND             F0DC : WRITE            F1B9 : TICK             D373 : 
+LE96A            F16A : LEB78            F378 : LE98A            F18A : 
+LE99A            F19A : SRCHLST          F09F : SEB3A            F33A : 
+ACIADD           DFE0 : LE982            F182 : OUTPRT           F012 : 
+LREAE7           F2E7 : LEAA2            F2A2 : DINIT            DE15 : 
+DRESTOR          DE09 : IRQLL            F0AF : SEEK             F24B : 
+LEB49            F349 : SEA93            F293 : LEA0B            F20B : 
+LEB6A            F36A : CHKNXT           F076 : LEA9B            F29B : 
+TINIT            F050 : LEABB            F2BB : VERIFY           F221 : 
+VOUTCH           F063 : LD3E1            D3E1 : DCHECK           DE0F : 
+DVERFY           DE06 : LREAFF           F2FF : LEA13            F213 : 
+LEAB3            F2B3 : IRQBM            F043 : MPT              E042 : 
+IRQVEC           DFC8 : LE9FC            F1FC : LEB5B            F35B : 
+WARM             F2DD : MINUTE           D371 : MONITR           F044 : 
+OPNPRT           F000 : FNDENT           F0AE : INIT             F2D2 : 
+NODEV            F09D : MONTHDAYS        F142 : YEAR             CC10 : 
+CHKPRT           F02A : SEAA5            F2A5 : RESTORE          F2E8 : 
+CLSPRT           F010 : INCHE            F806 : SCRATCH3         CC30 : 
+CHKDONE          F03D : TAPPTR           F0B2 : INCHEK           F808 : 
+LE9F5            F1F5 : READ             F155 : TMOFF            F0D6 : 
+SEA16            F216 : SEEKIT           F236 : SWIVEC           DFC2 : 
+LE9CE            F1CE : LE9EE            F1EE : TMINT            F0B4 : 
+TMON             F0D0 : LEB0D            F30D : NOUP             F13F : 
+LEB6D            F36D : LEA8E            F28E : LEA9E            F29E : 
+DRIVE            F300 : DWARM            DE18 : ADDDEV           F087 : 
+SEABF            F2BF : INCH             F804 : CPUFLAG          CC33 : 
+CHKRDY           F342 : LE9E6            F1E6 : INCHNE           F06F : 
+STAT             F067 : MPLPIA           E070 : TREDIR           F06B : 
+SRCHLP           F0A2 : LEB2E            F32E : DWRITE           DE03 : 
+LEB5E            F35E : DAY              CC0F : MONTH            CC0E : 
+IHDONE           F086 : LEA17            F217 : LEB56            F356 : 
+LEB96            F396 : OUTCH            F80A : IHNDLR           F073 : 
+INIT2            F2D7 : HOUR             D370 : TIMER            F14E : 
+PPORT            F03F : SPLFLG           CC34 : LEBAF            F3AF : 
+DSEEK            DE1B : LEA70            F270 : LEAD0            F2D0 : 
+LEB27            F327 : DQUICK           DE12 : VINCH            F05A : 
+DRVTBL           DE1E : SECOND           D372 : SEBA8            F3A8 : 
+SEBB8            F3B8 : DEVARE           F091 : DREAD            DE00 : 
+DDRIVE           DE0C : WARMS            CD03 : ACIAS            E004 : 
+LE991            F191 : LE9B1            F1B1 : DELDEV           F093 : 

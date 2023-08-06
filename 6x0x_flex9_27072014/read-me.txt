@@ -1,0 +1,88 @@
+TSC's FLEX9 V2.9:2 for  N8VEM 6x0x board
+It is fully functional FLEX9 system, but some (nonessential) features are missing.
+Some of the missing features:
+- use interrupt driven serial port.
+- change dsk images on SD card without power cycle
+- y2k patch
+
+
+Content:
+assist09 - Motorola's Assist09 monitor adapted for 6x0x board
+           added [F]lex command to automatically boot into Flex9
+           Burn Flash with content of ASSISTN8.bin
+           
+sd       - content of SD card, copy on freshly FAT16 formatted SD card root
+            FLEX.SYS is OS executable
+            FLEX_0.DSK contains all FLEX9 included commands and a few other tools
+            FLEX_1.DSK empty work disk
+            FLEX_2.DSk and FLEX_3.DSK are included so the system works, i don't know what they contain
+
+prop_io  - Propeller code, use Parallax IDE, BST or program propIO.eeprom into 24c256
+           Code is not fully developed, so it doesn't support mounting new SD without power cycle
+           Currently uses 'mb_rawb_spi' object in fsrw for faster SD card access. If it doesn't work,
+           recompile with 'safe_spi'. 
+
+flex9    - Flex source code, adapted for N8VEM from Michael Evenson's sources (included in SWTPCemu emulator)
+
+dsk      - A few examples of dsk images from SWTPCemu install
+
+as9      - Motorola's assembler for 6809 (http://home.hccnet.nl/a.w.m.van.der.horst/m6809.html)
+as09     - Frank Kingswood's 6809 assembler (http://www.kingswood-consulting.co.uk/assemblers/)
+
+To use any of the dsk images, choose one and rename it to FLEX_x.DSK, copy it into SD directory.
+Delete SD card (permanent delete or quick format!)
+Copy content of SD directory to SD card.
+Propeller expects files on SD card to be in continous sectors!
+For Propeller to have enough time to set up, the jumper JP5 must be in 2-3 position, 
+and 6809 can not reset the Propeller.
+That is the reason for power cycle on SD card change.
+
+To rebuild there is some manual work required, because FLEX drivers reside in ROM.
+FLEX9 is in ram between $C000-$DFFF, 
+I/O is between $E000-$F000
+Drivers could be either in ram below $C000 or in Flash above $F000.
+
+Assemble Assist09:
+cd to_assist_dir
+../as9 ASSISTN8.ASM -l s19 now
+
+Assemble FLEX9
+cd to_flex9_dir
+../as09 -inxsl FLEX9.asm
+
+Manualy cut S-records above $F000 from FLEX9.s19 and paste into ASSISTN8.s19
+Delete S5 records (recordcount)
+
+srec_cat FLEX9.s19 -offset - -minimum-addr FLEX9.s19 -o FLEX.SYS -binary
+srec_cat ASSISTN8.s19 -fill 0xff 0 0xffff -o ASSIST.bin -binary
+
+Copy FLEX.SYS to SD card,
+Burn ASSIST.bin into Flash.
+
+enter 
+G F1C9
+at Assist09 prompt to enter into test loop for 
+Propeller PS2 and VGA.
+
+This version uses pin 11 (PD1) of VIA1 to select between serial port and Prop console.
+The PD1 pin can be pulled to Vcc for serial port or to GND for Prop VGA & PS2.
+Production boards incorporate a jumper J3 for this purpose.
+When in serial port mode the board will boot in ASSIST09 monitor. To boot Flex
+press <F>.
+When in Prop mode the Flex will boot automatically on reset. 
+JP5 should connect pins 2-3.
+After power cycle the board has to be reset manually to boot Flex properly!
+
+To set the RTC boot into FLEX, press reset or type MON
+and in ASSIST09 type
+G F48F
+then type in date and time in exact format:
+>G F48F                                 
+                                        
+ENTER DATE AND TIME(MM,DD,YY-HH,MI,SS): 07,26,14-09,26,00
+THANK YOU                               
+                                        
+NOT FOUND
+EX ABORTED
++++
+
