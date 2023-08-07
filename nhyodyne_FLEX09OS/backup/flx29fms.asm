@@ -911,7 +911,7 @@ SWTSEQ
         STB     FSC,x                             ;SAVE IT
         CMPB    #MAXSP                            ;MAXIMUM?
         BNE     SWTSE6                            ;
-        BRA     PUTSPC                            ;** FIX FOR 128 SPACES **
+        BRA     PUTSPC                            ;;*;* FIX FOR 128 SPACES ;*;*
                                                   ;
 SWTSE2
         BSR     PUTSPC                            ;GO PUT SPACES
